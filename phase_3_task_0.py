@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.preprocessing import StandardScaler
 import cv2, os
 import torchvision, torch, cv2
@@ -45,25 +45,50 @@ match task_selection:
 
         print("Database query complete")
         for image in tqdm(image_features, desc="Loading Progress", unit="images", total=document_count):
-            image_data.append(np.array(image["feature_value"]).flatten())
+            try:
+                if "feature_value" in image.keys():
+                    image_data.append(np.array(image["feature_value"]).flatten())
+            except:
+                print(image)
 
 image_data = np.array(image_data)
 
-n_components = len(image_data[0])
-# Perform PCA
-pca = PCA(n_components=n_components)
-pca.fit(image_data)
+# n_components = min(len(image_data), len(image_data[0]))
+# # Perform PCA
+# pca = PCA(n_components=n_components)
+# pca.fit(image_data)
 
-# Explained variance ratio
-explained_variance_ratio = pca.explained_variance_ratio_
+# # Explained variance ratio
+# explained_variance_ratio = pca.explained_variance_ratio_
 
-# Plot explained variance ratio to decide the intrinsic dimensionality
-cum_sum = np.cumsum(explained_variance_ratio)
-plt.plot(cum_sum)
-intrinsic_dim = find_lowest_index_greater_than(cum_sum, 0.95)
+# # Plot explained variance ratio to decide the intrinsic dimensionality
+# cum_sum = np.cumsum(explained_variance_ratio)
+# plt.plot(cum_sum)
+# intrinsic_dim = find_lowest_index_greater_than(cum_sum, 0.95)
+# plt.xlabel("Number of Principal Components")
+# plt.ylabel("Explained Variance Ratio")
+# plt.axhline(y=0.95, color='red', linestyle='dotted', label='y = 0.95')
+# plt.axvline(x=intrinsic_dim, color='green', linestyle='dotted', label='intrinsic_dim')
+# plt.grid()
+# plt.show()
+
+n_components = min(image_data.shape[0], image_data.shape[1])  # Use the smaller of the two dimensions
+svd = TruncatedSVD(n_components=n_components)
+svd.fit(image_data)
+singular_values = svd.singular_values_
+
+explained_variance = np.cumsum(singular_values) / np.sum(singular_values)
+
+plt.figure()
+plt.plot(range(1, n_components + 1), explained_variance, marker='.')
+intrinsic_dim = find_lowest_index_greater_than(explained_variance, 0.95)
 plt.xlabel("Number of Principal Components")
 plt.ylabel("Explained Variance Ratio")
 plt.axhline(y=0.95, color='red', linestyle='dotted', label='y = 0.95')
 plt.axvline(x=intrinsic_dim, color='green', linestyle='dotted', label='intrinsic_dim')
+differences = np.diff(singular_values)
+elbow_index = np.argmin(differences)  # Find the index of the minimum difference
+elbow_x = elbow_index + 1  # Adjust for 0-based indexing
+plt.text(elbow_x, singular_values[elbow_index], f'({elbow_x}, {singular_values[elbow_index]:.2f})', fontsize=12, verticalalignment='bottom')
 plt.grid()
 plt.show()
