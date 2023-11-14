@@ -1,3 +1,4 @@
+from collections import defaultdict
 import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
@@ -27,14 +28,16 @@ for image in collection.find():
 # scaler = StandardScaler()
 X_normalized = image_data
 # Create and fit the DBScan model
-eps = 2.3
+# # For color moment
+# eps = 2.4
+# min_samples = 2
+eps = 2.4
 min_samples = 2
 dbscan = DBSCAN(eps=eps, min_samples=min_samples)
 dbscan.fit(X_normalized)
 
 # Get cluster labels (-1 represents noise points)
 labels = dbscan.labels_
-from collections import defaultdict
 
 cluster_indices = defaultdict(list)
 
@@ -53,7 +56,8 @@ print(f'Estimated number of noise points: {n_noise}')
 
 X = X_normalized
 # Apply Multi-Dimensional Scaling (MDS) for dimensionality reduction
-mds = MDS(n_components=2, max_iter=100, n_init=2, verbose=2)  # Reduce the data to 2 dimensions for visualization
+# Reduce the data to 2 dimensions for visualization
+mds = MDS(n_components=2, max_iter=500, n_init=10, verbose=2, n_jobs=10)
 X_mds = mds.fit_transform(X)
 
 # Create a scatter plot to visualize the clusters
@@ -65,10 +69,12 @@ unique_labels = set(labels)
 for label in unique_labels:
     if label == -1:
         # Plot noise points in black
-        plt.scatter(X_mds[labels == label, 0], X_mds[labels == label, 1], c='k', label='Noise')
+        plt.scatter(X_mds[labels == label, 0],
+                    X_mds[labels == label, 1], c='k', label='Noise')
     else:
         # Plot points in each cluster with different colors
-        plt.scatter(X_mds[labels == label, 0], X_mds[labels == label, 1], label=f'Cluster {label}')
+        plt.scatter(X_mds[labels == label, 0],
+                    X_mds[labels == label, 1], label=f'Cluster {label}')
 
 plt.title('DBScan Clustering Results with MDS Visualization')
 plt.legend()
