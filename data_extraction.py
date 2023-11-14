@@ -11,9 +11,9 @@ from database_connection import connect_to_mongo
 
 # Connect to the mongo database
 mongo_client = connect_to_mongo()
-dbnme = mongo_client.cse515_project_phase1
-collection = dbnme.phase2_features
-image_collection = dbnme.even_images
+db = mongo_client.cse515_project_phase1
+collection = db.phase2_features
+image_collection = db.even_images
 
 transforms = transforms.Compose([
     transforms.ToTensor(),
@@ -30,4 +30,4 @@ for image_ID in range(8677):
     if image_ID % 2 == 0:
         img, label = dataset[image_ID]
         print(image_ID)
-        image_collection.insert_one({"image_ID": str(image_ID), "image": list(img.numpy().flatten())})
+        image_collection.insert_one({"image_ID": str(image_ID), "image": img.numpy().tolist()})
