@@ -1,5 +1,6 @@
 import numpy as np
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
 
 from database_connection import connect_to_mongo
@@ -50,7 +51,26 @@ y_data = [d["target"] for d in data]
 X_train, X_test = X_data[:split_index], X_data[split_index:]
 y_train, y_test = y_data[:split_index], y_data[split_index:]
 
+# Train the Decision Tree Classifier
+dt_classifier = DecisionTreeClassifier()
+dt_classifier.fit(X_train, y_train)
+
 y_pred = predict(X_test, X_train, y_train, 20)
+
+# Predict using the Decision Tree Classifier
+y_pred_dt = dt_classifier.predict(X_test)
+
+# Calculate metrics
+accuracy_dt = accuracy_score(y_test, y_pred_dt)
+precision_dt = precision_score(y_test, y_pred_dt, average='macro')
+recall_dt = recall_score(y_test, y_pred_dt, average='macro')
+f1_dt = f1_score(y_test, y_pred_dt, average='macro')
+
+# Print the results
+print(f'Decision Tree Accuracy: {accuracy_dt * 100:.2f}%')
+print(f'Decision Tree Precision: {precision_dt:.2f}')
+print(f'Decision Tree Recall: {recall_dt:.2f}')
+print(f'Decision Tree F1-Score: {f1_dt:.2f}')
 
 accuracy = accuracy_score(y_test, y_pred)
 print(f'Accuracy: {accuracy * 100:.2f}%')
