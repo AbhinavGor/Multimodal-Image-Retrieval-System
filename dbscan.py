@@ -6,6 +6,7 @@ from sklearn.manifold import MDS
 import matplotlib.pyplot as plt
 
 from database_connection import connect_to_mongo
+from helper_functions import dbscan
 
 mongo_client = connect_to_mongo()
 
@@ -33,11 +34,13 @@ X_normalized = image_data
 # min_samples = 2
 eps = 2.4
 min_samples = 2
-dbscan = DBSCAN(eps=eps, min_samples=min_samples)
-dbscan.fit(X_normalized)
+# dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+# dbscan.fit(X_normalized)
 
-# Get cluster labels (-1 represents noise points)
-labels = dbscan.labels_
+# # Get cluster labels (-1 represents noise points)
+# labels = dbscan.labels_
+
+labels = dbscan(X_normalized, eps, min_samples)
 
 cluster_indices = defaultdict(list)
 
@@ -57,7 +60,7 @@ print(f'Estimated number of noise points: {n_noise}')
 X = X_normalized
 # Apply Multi-Dimensional Scaling (MDS) for dimensionality reduction
 # Reduce the data to 2 dimensions for visualization
-mds = MDS(n_components=2, max_iter=500, n_init=10, verbose=2, n_jobs=10)
+mds = MDS(n_components=2, max_iter=500, n_init=4, verbose=2, n_jobs=6)
 X_mds = mds.fit_transform(X)
 
 # Create a scatter plot to visualize the clusters

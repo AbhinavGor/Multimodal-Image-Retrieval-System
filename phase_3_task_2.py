@@ -1,112 +1,96 @@
-import os
+from collections import defaultdict
 import numpy as np
-import cv2
 from sklearn.cluster import DBSCAN
-from sklearn.manifold import MDS
-from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
+from sklearn.manifold import MDS
 import matplotlib.pyplot as plt
-from sklearn.metrics import pairwise_distances
-from sklearn.datasets import fetch_openml
+from scipy.spatial.distance import pdist, squareform
 
 from database_connection import connect_to_mongo
-import sys
-# Function to load Caltech101 dataset
-def load_caltech101_dataset():
-    caltech101 = fetch_openml(data_home='./', name="caltech101")
-    images = caltech101.images
-    labels = caltech101.target.astype(int)
-    return images, labels
+from helper_functions import classical_mds
 
-# Function to load and preprocess images
-def load_and_preprocess_images(image_paths):
-    images = []
-    for image_path in image_paths:
-        img = cv2.imread(image_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        img = cv2.resize(img, (64, 64))  # Resize images to a common size (adjust as needed)
-        images.append(img)
-    return images
+mongo_client = connect_to_mongo()
 
-# Function to compute DBScan clusters
-def compute_dbscan_clusters(images, eps, min_samples):
-    X = np.array(images).reshape(len(images), -1)
-    X = StandardScaler().fit_transform(X)
-    
-    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
-    labels = dbscan.fit_predict(X)
-    
-    return labels
+dbname = mongo_client.cse515_project_phase1
+collection = dbname.phase2_features
+rep_image_collection = dbname.phase2_representative_images
 
-# Function to perform MDS and visualize clusters
-def visualize_clusters(images, labels, title):
-    mds = MDS(n_components=2, dissimilarity="precomputed")
-    distances = pairwise_distances(images, metric="euclidean")
-    X_2d = mds.fit_transform(distances)
+image_data = []
+even_indices = []
+label_indices = []
+for image in collection.find():
+    print(image["image_id"])
+    even_indices.append(int(image['image_id']))
+    label_indices.append(int(image['target']))
+    image_data.append(np.array(image["layer3"]).flatten())
+# Assuming your data is loaded into a variable 'X'
+# You may need to apply dimensionality reduction and preprocessing if necessary
 
-    unique_labels = np.unique(labels)
-    
-    plt.figure(figsize=(12, 8))
-    for label in unique_labels:
-        mask = (labels == label)
-        plt.scatter(X_2d[mask, 0], X_2d[mask, 1], label=f"Cluster {label}", s=50)
-    
-    plt.title(title)
-    plt.legend()
-    plt.show()
+# Normalize or standardize the data
+# scaler = StandardScaler()
+X_normalized = image_data
+# Create and fit the DBScan model
+# # For color moment
+# eps = 2.4
+# min_samples = 2
+eps = 2.4
+min_samples = 2
+dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+dbscan.fit(X_normalized)
 
-# Function to evaluate image classification
-def evaluate_image_classification(images, labels, cluster_labels):
-    unique_labels = np.unique(labels)
-    
-    precision_scores = []
-    recall_scores = []
-    f1_scores = []
-    accuracy_scores = []
-    
-    for label in unique_labels:
-        mask = (labels == label)
-        cluster_labels_masked = cluster_labels[mask]
-        most_common_label = np.bincount(cluster_labels_masked).argmax()
-        
-        precision = precision_score(cluster_labels_masked, [most_common_label] * len(cluster_labels_masked))
-        recall = recall_score(cluster_labels_masked, [most_common_label] * len(cluster_labels_masked))
-        f1 = f1_score(cluster_labels_masked, [most_common_label] * len(cluster_labels_masked))
-        accuracy = accuracy_score(cluster_labels_masked, [most_common_label] * len(cluster_labels_masked))
-        
-        precision_scores.append(precision)
-        recall_scores.append(recall)
-        f1_scores.append(f1)
-        accuracy_scores.append(accuracy)
-    
-    return precision_scores, recall_scores, f1_scores, accuracy_scores
+# Get cluster labels (-1 represents noise points)
+labels = dbscan.labels_
 
-# Main function
-def main():
-    mongo_client = connect_to_mongo()
+cluster_indices = defaultdict(list)
 
-    dbname = mongo_client.cse515_project_phase1
-    collection = dbname.phase2_features
-    rep_image_collection = dbname.phase2_representative_images
+# Loop through the cluster labels and store image indices in the corresponding cluster
+for i, label in enumerate(labels):
+    cluster_indices[label].append(i)
 
-    image_data = []
+# print(cluster_indices)
 
-    for image in collection.find():
-        print(image["image_id"])
-        image_data.append(np.array(image[str(sys.argv[1])]).flatten())
+# Print the number of clusters and noise points
+n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+n_noise = list(labels).count(-1)
 
-    even_labels = compute_dbscan_clusters(image_data, eps=0.5, min_samples=5)
-    for i in even_labels: print(i)
+print(f'Estimated number of clusters: {n_clusters}')
+print(f'Estimated number of noise points: {n_noise}')
 
-    visualize_clusters(image_data, even_labels, "Even-Numbered Images Clusters")
+X = np.array(X_normalized)
+# Apply Multi-Dimensional Scaling (MDS) for dimensionality reduction
+# Reduce the data to 2 dimensions for visualization
+# mds = MDS(n_components=2, max_iter=500, n_init=10, verbose=2, n_jobs=10)
+distance_matrix = squareform(pdist(X, 'euclidean'))
+distance_matrix = 0.5 * \
+    (distance_matrix + distance_matrix.T)  # Make it symmetric
 
-    # precision, recall, f1, accuracy = evaluate_image_classification(odd_images, labels[1::2], even_labels)
-    
-    # print(f"Per-Label Precision: {precision}")
-    # print(f"Per-Label Recall: {recall}")
-    # print(f"Per-Label F1-Score: {f1}")
-    # print(f"Overall Accuracy: {accuracy}")
+# Specify the number of dimensions
+num_dimensions = 2
 
-if __name__ == "__main__":
-    main()
+# Specify the number of iterations and random initializations
+num_iterations = 100
+num_init = 5
+
+
+X_mds = classical_mds(X)
+
+# Create a scatter plot to visualize the clusters
+plt.figure(figsize=(10, 6))
+
+# Plot points for each cluster with different colors
+print(labels)
+unique_labels = set(labels)
+for label in unique_labels:
+    if label == -1:
+        # Plot noise points in black
+        plt.scatter(X_mds[labels == label, 0],
+                    X_mds[labels == label, 1], c='k', label='Noise')
+    else:
+        # Plot points in each cluster with different colors
+        plt.scatter(X_mds[labels == label, 0],
+                    X_mds[labels == label, 1], label=f'Cluster {label}')
+
+plt.title('DBScan Clustering Results with MDS Visualization')
+plt.legend()
+plt.grid(True)
+plt.show()
