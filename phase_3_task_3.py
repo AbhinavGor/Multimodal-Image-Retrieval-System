@@ -2,8 +2,26 @@ import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
-
 from database_connection import connect_to_mongo
+import networkx as nx 
+
+# NOT FINISHED
+def personalized_page_rank_predict(G, odd_data, even_data, k):
+    predictions = {}
+    for test_entry in odd_data:
+        # Create personalization vector
+        personalization = {entry['image_id']: 1 if entry['image_id'] == test_entry['image_id'] else 0 for entry in even_data}
+        ranks = nx.pagerank(G, personalization=personalization)
+
+        # Get top k nodes and their labels
+        top_k_nodes = sorted(ranks, key=ranks.get, reverse=True)[:k]
+        top_k_labels = [even_data[node]['label'] for node in top_k_nodes if node in even_data]
+
+        # Predict label
+        predicted_label = max(set(top_k_labels), key=top_k_labels.count)
+        predictions[test_entry['image_id']] = predicted_label
+
+    return predictions
 
 def euclidean_distance(x1, x2):
     x1, x2 = np.array(x1), np.array(x2)
@@ -51,29 +69,33 @@ y_data = [d["target"] for d in data]
 X_train, X_test = X_data[:split_index], X_data[split_index:]
 y_train, y_test = y_data[:split_index], y_data[split_index:]
 
-# Train the Decision Tree Classifier
-dt_classifier = DecisionTreeClassifier()
-dt_classifier.fit(X_train, y_train)
+classifier_choice = input("Select classifier (mnn, dt, ppr): ")
 
-y_pred = predict(X_test, X_train, y_train, 20)
-
-# Predict using the Decision Tree Classifier
-y_pred_dt = dt_classifier.predict(X_test)
+if classifier_choice == 'mnn':
+    k = int(input("Enter k for m-NN: "))
+    y_pred = predict(X_test, X_train, y_train, k)
+elif classifier_choice == 'dt':
+    dt_classifier = DecisionTreeClassifier()
+    dt_classifier.fit(X_train, y_train)
+    y_pred = dt_classifier.predict(X_test)
+elif classifier_choice == 'ppr':
+    k = int(input("Enter k for PPR: "))
+    # Create graph G and use personalized_page_rank_predict() function
+else:
+    raise ValueError("Invalid classifier choice")
 
 # Calculate metrics
-accuracy_dt = accuracy_score(y_test, y_pred_dt)
-precision_dt = precision_score(y_test, y_pred_dt, average='macro')
-recall_dt = recall_score(y_test, y_pred_dt, average='macro')
-f1_dt = f1_score(y_test, y_pred_dt, average='macro')
-
-# Print the results
-print(f'Decision Tree Accuracy: {accuracy_dt * 100:.2f}%')
-print(f'Decision Tree Precision: {precision_dt:.2f}')
-print(f'Decision Tree Recall: {recall_dt:.2f}')
-print(f'Decision Tree F1-Score: {f1_dt:.2f}')
-
 accuracy = accuracy_score(y_test, y_pred)
-print(f'Accuracy: {accuracy * 100:.2f}%')
+precision = precision_score(y_test, y_pred, average='macro')
+recall = recall_score(y_test, y_pred, average='macro')
+f1 = f1_score(y_test, y_pred, average='macro')
+
+# Print results
+print(f"Classifier: {classifier_choice}")
+print(f"Accuracy: {accuracy * 100:.2f}%")
+print(f"Precision: {precision:.2f}")
+print(f"Recall: {recall:.2f}")
+print(f"F1 Score: {f1:.2f}")
 
 # Print actual vs. predicted values
 print("Actual vs. Predicted:")
