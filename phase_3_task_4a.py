@@ -73,7 +73,7 @@ feature = int(input("Select one of the feature space from above:"))
 
 field_to_extract = feature_names[feature-1]
 
-csv_file_name = f"InMemory_Index_Structure_{field_to_extract}.csv"
+csv_file_name = f"InMemory_Index_Structure_{field_to_extract}_layers{num_layers}_hashes{num_hashes}.csv"
 
 extracted_items = []
 
