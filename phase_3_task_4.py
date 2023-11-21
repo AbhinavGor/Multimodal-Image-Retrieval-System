@@ -71,43 +71,42 @@ feature_names = ["color_moment", "hog", "layer3", "avgpool", "fc"]
 print("1. Color Moment\n2. HoG.\n3. Layer 3.\n4. AvgPool.\n5. FC.")
 feature = int(input("Select one of the feature space from above:"))
 
-csv_file_name = f"InMemory_Index_Structure_{feature_names[feature-1]}.csv"
+field_to_extract = feature_names[feature-1]
+
+csv_file_name = f"InMemory_Index_Structure_{field_to_extract}.csv"
+
+extracted_items = []
 
 image_features = []
 match feature:
     case 1:
-        image_features = list(features_coll.find(
-            {
-                "color_moment": 1
-            }))
+        for document in features_coll.find({}, {field_to_extract: 1}):
+            if field_to_extract in document:
+                extracted_items.append(document[field_to_extract])
     case 2:
-        image_features = list(features_coll.find(
-            {
-                "hog": 1
-            }))
+        for document in features_coll.find({}, {field_to_extract: 1}):
+            if field_to_extract in document:
+                extracted_items.append(document[field_to_extract])
     case 3:
-        image_features = list(features_coll.find(
-            {
-                "layer3": 1
-            }))
+        for document in features_coll.find({}, {field_to_extract: 1}):
+            if field_to_extract in document:
+                extracted_items.append(document[field_to_extract])
     case 4:
-        image_features = list(features_coll.find(
-            {
-                "avgpool": 1
-            }))
+        for document in features_coll.find({}, {field_to_extract: 1}):
+            if field_to_extract in document:
+                extracted_items.append(document[field_to_extract])
     case 5:
-        image_features = list(features_coll.find(
-            {
-                "fc": 1
-            }))
+        for document in features_coll.find({}, {field_to_extract: 1}):
+            if field_to_extract in document:
+                extracted_items.append(document[field_to_extract])
 
 # np.random.seed(42)
-image_features = [np.random.randn(1000) for _ in range(8500)]
+#image_features = [np.random.randn(1000) for _ in range(8500)]
 
 # print(image_features)
 
-lsh = LSH(num_layers, num_hashes, len(image_features[0]))
-lsh.index_vectors(image_features)
+lsh = LSH(num_layers, num_hashes, len(extracted_items[0]))
+lsh.index_vectors(extracted_items)
 
 index_structure = lsh.get_index_structure()
 # for i, table in enumerate(index_structure):
