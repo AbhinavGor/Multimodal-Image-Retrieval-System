@@ -11,7 +11,7 @@ from pymongo.server_api import ServerApi
 from tqdm import tqdm
 import sys
 
-from helper_functions import find_lowest_index_greater_than
+from helper_functions import find_explained_variance, find_lowest_index_greater_than
 from database_connection import connect_to_mongo
 
 transforms = transforms.Compose([
@@ -51,8 +51,6 @@ match task_selection:
             except:
                 print(image)
 
-image_data = np.array(image_data)
-
 # n_components = min(len(image_data), len(image_data[0]))
 # # Perform PCA
 # pca = PCA(n_components=n_components)
@@ -72,13 +70,7 @@ image_data = np.array(image_data)
 # plt.grid()
 # plt.show()
 
-n_components = min(image_data.shape[0], image_data.shape[1])  # Use the smaller of the two dimensions
-svd = TruncatedSVD(n_components=n_components)
-svd.fit(image_data)
-singular_values = svd.singular_values_
-
-explained_variance = np.cumsum(singular_values) / np.sum(singular_values)
-
+n_components, explained_variance, singular_values = find_explained_variance(image_data)
 plt.figure()
 plt.plot(range(1, n_components + 1), explained_variance, marker='.')
 intrinsic_dim = find_lowest_index_greater_than(explained_variance, 0.95)

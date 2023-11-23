@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
+from sklearn.decomposition import TruncatedSVD
 
 
 def find_lowest_index_greater_than(arr, target_value):
@@ -61,6 +62,18 @@ def get_neighbors(data, point, eps):
         if np.linalg.norm(point - p) <= eps:
             neighbors.append(p)
     return neighbors
+
+def find_explained_variance(data):
+    image_data = np.array(image_data)
+
+    n_components = min(image_data.shape[0], image_data.shape[1])  # Use the smaller of the two dimensions
+    svd = TruncatedSVD(n_components=n_components)
+    svd.fit(image_data)
+    singular_values = svd.singular_values_
+
+    explained_variance = np.cumsum(singular_values) / np.sum(singular_values)
+
+    return n_components, explained_variance, singular_values
 
 
 def classical_mds(data, n_components=2, max_iterations=1500, n_init=1, verbose=True):
@@ -149,3 +162,6 @@ def classical_mds(data, n_components=2, max_iterations=1500, n_init=1, verbose=T
 # embedding = classical_mds(distance_matrix, num_dimensions, max_iterations=num_iterations, n_init=num_init)
 # print("Final Embedding:")
 # print(embedding)
+def top_k_min_indices(arr, k):
+    indices = np.argpartition(arr, k)[:k]
+    return indices
