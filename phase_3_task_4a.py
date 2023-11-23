@@ -1,3 +1,7 @@
+from collections import defaultdict
+import random
+import numpy as np
+
 class EuclideanLSHRefined:
     def __init__(self, L, h, dim):
         self.L = L  # Number of layers
