@@ -65,21 +65,6 @@ def fetch_data_from_db(descriptor):
             data.append(entry)
     return data
 
-'''
-The below function creates a similarity graph which is computationally very intensive as it is adding every node and edge separately in a loop
-It could potentially dilute the importance of the most relevant similarities as it is a fully connected graph for 4000< images.
-'''
-# def create_similarity_graph(data):
-#     G = nx.Graph()
-#     for i, entry in enumerate(data):
-#         G.add_node(i, image_id=entry['image_id'], label=entry['label'])
-#         for j, other_entry in enumerate(data):
-#             if i == j:
-#                 continue
-#             G.add_node(j, image_id=other_entry['image_id'], label=other_entry['label'])
-#             G.add_edge(i, j, weight=euclidean_distance(entry['feature'], other_entry['feature']))
-#     return G
-
 def create_similarity_graph(data, n):
     G = nx.Graph()
     for i, entry in enumerate(data):
@@ -172,7 +157,7 @@ elif classifier_choice == 'ppr':
     graph = create_similarity_graph(data, 10)
     odd_number_images = load_odd_image_data()
     predictions = personalized_page_rank_predict(graph, odd_number_images, jump_prob)
-    y_test = [entry['label'] for entry in odd_number_images]
+    # y_test = [entry['label'] for entry in odd_number_images]
     y_pred = list(predictions.values())
 else:
     raise ValueError("Invalid classifier choice")
