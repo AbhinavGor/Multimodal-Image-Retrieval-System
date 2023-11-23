@@ -18,12 +18,14 @@ transforms = transforms.Compose([
 
 dataset = datasets.Caltech101(
     'your_path', transform=transforms, download=True)
+
 data_loader = torch.utils.data.DataLoader(
     dataset, batch_size=4, shuffle=True, num_workers=8)
 
 def load_odd_image_data(feature):
     odd_number_images = []
-    for image_ID in range(8677):
+    for image_ID in range(8):
+        print(f"image id:{image_ID}")
         if image_ID % 2 != 0:
             img, label = dataset[image_ID]
 
@@ -68,11 +70,11 @@ def fetch_data_from_db(descriptor):
 def create_similarity_graph(data, n):
     G = nx.Graph()
     for i, entry in enumerate(data):
+        print(f'similarity_graph_entry:{entry["image_id"]}')
         G.add_node(entry['image_id'], label=entry['label'])
         
         # Calculate similarities with all other nodes
         similarities = [(other_entry['image_id'], 1 / (1 + euclidean_distance(entry['feature'], other_entry['feature']))) for other_entry in data if other_entry['image_id'] != entry['image_id']]
-        
         # Sort by similarity and take top n
         top_n_similarities = sorted(similarities, key=lambda x: x[1], reverse=True)[:n]
 
@@ -84,11 +86,13 @@ def create_similarity_graph(data, n):
 def personalized_page_rank_predict(graph, test_data, alpha):
     predictions = {}
     for test_entry in test_data:
+        print(f'testentry:{test_entry["image_id"]}')
         # Create personalization vector
         personalization = {node: 1 if graph.nodes[node]['label'] == test_entry['label'] else 0 for node in graph.nodes}
         
         ranks = nx.pagerank(graph, personalization=personalization, alpha=alpha)
-        
+        print(f"ranks {ranks}")
+
         predicted_label = max(set(ranks), key=ranks.get)
         predictions[test_entry['image_id']] = graph.nodes[predicted_label]['label']
     return predictions
@@ -96,6 +100,7 @@ def personalized_page_rank_predict(graph, test_data, alpha):
 def euclidean_distance(x1, x2):
     x1, x2 = np.array(x1), np.array(x2)
     return np.sqrt(np.sum((x1 - x2) ** 2))
+
 
 def get_nearest_neighbors(test_sample, train_data, k):
     distances = [(i, euclidean_distance(test_sample, train_sample)) for i, train_sample in enumerate(train_data)]
@@ -119,8 +124,8 @@ def predict(test_data, train_data, train_labels, k):
     return predictions
 
 client = connect_to_mongo()
-dbname = client.cse515_project_phase1
-collection = dbname.phase2_features
+dbname = client.cse515
+collection = dbname.Phase2
 
 image_data = []
 image_features = collection.find()
@@ -143,21 +148,29 @@ classifier_choice = input("Select classifier (mnn, dt, ppr): ")
 feature_names = ["color_moment", "hog", "layer3", "avgpool", "fc"]
 print("1. Color Moment\n2. HoG\n3. Layer 3\n4. AvgPool\n5. FC\n6. Label-Label Similarity Matrix\n7. Image-Image Similarity Matrix")
 feature = int(input("Select one feature from above: "))
+feature = feature_names[feature - 1]
 
 if classifier_choice == 'mnn':
     m = int(input("Enter m for m-NN: "))
     y_pred = predict(X_test, X_train, y_train, m)
 elif classifier_choice == 'dt':
     dt_classifier = DecisionTreeClassifier()
-    dt_classifier.fit(X_train, y_train)
-    y_pred = dt_classifier.predict(X_test)
+    X_train = np.array(X_train)
+    X_train_reshaped = X_train.reshape(len(X_train), -1)
+
+    dt_classifier.fit(X_train_reshaped, y_train)
+
+    X_test = np.array(X_test)
+    X_test_reshaped = X_test.reshape(len(X_test), -1)
+
+    y_pred = dt_classifier.predict(X_test_reshaped)
 elif classifier_choice == 'ppr':
-    jump_prob = int(input("Enter PPR random jump probability: "))
+    jump_prob = float(input("Enter PPR random jump probability: "))
     data = fetch_data_from_db(feature)
     graph = create_similarity_graph(data, 10)
-    odd_number_images = load_odd_image_data()
+    odd_number_images = load_odd_image_data(feature)
     predictions = personalized_page_rank_predict(graph, odd_number_images, jump_prob)
-    # y_test = [entry['label'] for entry in odd_number_images]
+    y_test = [entry["label"] for entry in odd_number_images]
     y_pred = list(predictions.values())
 else:
     raise ValueError("Invalid classifier choice")
