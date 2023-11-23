@@ -5,18 +5,19 @@ from scipy.spatial.distance import euclidean
 from database_connection import connect_to_mongo
             
 class LSH:
-    def __init__(self, num_layers, num_hashes, num_dimensions):
+    def __init__(self, num_layers, num_hashes, num_dimensions, bucket_width=1.0):
         self.num_layers = num_layers
         self.num_hashes = num_hashes
         self.num_dimensions = num_dimensions
+        self.bucket_width = bucket_width
         self.tables = [{} for _ in range(num_layers)]
 
         self.hash_functions = [self.generate_hash_function() for _ in range(num_layers * num_hashes)]
 
     def generate_hash_function(self):
         random_vector = np.random.randn(1, self.num_dimensions)
-        random_offset = np.random.uniform(0, 1)
-        return lambda x: int((np.dot(random_vector, x) + random_offset) / 0.1)
+        random_offset = np.random.uniform(0, self.bucket_width)
+        return lambda x: int((np.dot(random_vector, x) + random_offset) / self.bucket_width)
 
     def hash_vector(self, vector, layer_idx):
         hashes = []
@@ -33,7 +34,8 @@ class LSH:
                     self.tables[layer_idx][hash_key] = []
                 self.tables[layer_idx][hash_key].append((vector_idx, vector))
 
-    def query(self, query_vector, threshold=1.0):
+    def query(self, query_vector, threshold=None):
+        threshold = threshold if threshold is not None else self.bucket_width * 5
         candidates = set()
         for layer_idx in range(self.num_layers):
             hash_key = self.hash_vector(query_vector, layer_idx)
@@ -44,6 +46,29 @@ class LSH:
         filtered_candidates = [(idx, vector) for idx, vector in candidates if euclidean(query_vector, vector) <= threshold]
 
         return filtered_candidates
+    
+    def multi_probe_query(self, query_vector, num_probes=3):
+        candidates = set()
+        for layer_idx in range(self.num_layers):
+            primary_hash_key = self.hash_vector(query_vector, layer_idx)
+            probe_keys = [primary_hash_key]  # Start with primary hash key
+            # Generate additional probe keys (simplified example)
+            for _ in range(1, num_probes):
+                probe_keys.append(self.generate_probe_key(primary_hash_key))
+            
+            for key in probe_keys:
+                if key in self.tables[layer_idx]:
+                    candidates.update(self.tables[layer_idx][key])
+
+        # Filter candidates based on actual distance
+        # ... same filtering process as in the query method ...
+
+        return candidates
+
+    def generate_probe_key(self, primary_hash_key):
+        # Example implementation to generate a new probe key
+        # This should be improved based on specific requirements
+        return tuple([x + np.random.choice([-1, 0, 1]) for x in primary_hash_key])
 
     def get_index_structure(self):
         return self.tables
