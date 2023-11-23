@@ -1,7 +1,9 @@
+from collections import defaultdict
+import random
+import numpy as np
 import csv
 import numpy as np
 from scipy.spatial.distance import euclidean
-
 from database_connection import connect_to_mongo
             
 class LSH:
