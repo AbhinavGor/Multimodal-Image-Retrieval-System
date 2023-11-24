@@ -61,51 +61,60 @@ class LSH:
                 for hash_key, vectors in table.items():
                     writer.writerow([layer_idx, hash_key, vectors])
 
-def create_lsh_index_csv(features_coll, field_to_extract, csv_file_name):
+client = connect_to_mongo()
+db = client.CSE515ProjectDB
+features_coll = db.Phase2
+
+num_layers = int(input("Enter the number of layers: "))
+num_hashes = int(input("Enter the number of hashes: "))
+
+feature_names = ["color_moment", "hog", "layer3", "avgpool", "fc"]
+print("1. Color Moment\n2. HoG.\n3. Layer 3.\n4. AvgPool.\n5. FC.")
+feature = int(input("Select one of the feature space from above:"))
+
+field_to_extract = feature_names[feature-1]
+
+csv_file_name = f"InMemory_Index_Structure_{field_to_extract}_layers{num_layers}_hashes{num_hashes}.csv"
+
+if (not os.path.isfile(csv_file_name)):
+
     extracted_items = []
 
-    # Use the provided feature extraction logic
-    for document in features_coll.find({}, {field_to_extract: 1}):
-        if field_to_extract in document:
-            extracted_items.append(document[field_to_extract])
+    image_features = []
+    match feature:
+        case 1:
+            for document in features_coll.find({}, {field_to_extract: 1}):
+                if field_to_extract in document:
+                    extracted_items.append(document[field_to_extract])
+        case 2:
+            for document in features_coll.find({}, {field_to_extract: 1}):
+                if field_to_extract in document:
+                    extracted_items.append(document[field_to_extract])
+        case 3:
+            for document in features_coll.find({}, {field_to_extract: 1}):
+                if field_to_extract in document:
+                    extracted_items.append(document[field_to_extract])
+        case 4:
+            for document in features_coll.find({}, {field_to_extract: 1}):
+                if field_to_extract in document:
+                    extracted_items.append(document[field_to_extract])
+        case 5:
+            for document in features_coll.find({}, {field_to_extract: 1}):
+                if field_to_extract in document:
+                    extracted_items.append(document[field_to_extract])
 
-    lsh = LSH(num_layers, num_hashes, len(extracted_items))
+    # np.random.seed(42)
+    #image_features = [np.random.randn(1000) for _ in range(8500)]
+
+    # print(image_features)
+
+    lsh = LSH(num_layers, num_hashes, len(extracted_items[0]))
     lsh.index_vectors(extracted_items)
 
     index_structure = lsh.get_index_structure()
-
-    with open(csv_file_name, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-
-        # Write header
-        writer.writerow(['Layer', 'Hash Key', 'Vectors'])
-
-        # Write data
-        for layer_idx, table in enumerate(index_structure):
-            for hash_key, vectors in table.items():
-                writer.writerow([layer_idx, hash_key, vectors])
+    # for i, table in enumerate(index_structure):
+    #     print(f"Layer {i}:", table)
+        
+    lsh.save_index_to_csv(csv_file_name)
 
     print("In-memory Index Structure is saved to file", csv_file_name)
-
-if __name__ == "__main__":
-    # This block will only be executed if the script is run directly
-    client = connect_to_mongo()
-    db = client.CSE515ProjectDB
-    features_coll = db.Phase2
-
-    num_layers = int(input("Enter the number of layers: "))
-    num_hashes = int(input("Enter the number of hashes: "))
-
-    feature_names = ["color_moment", "hog", "layer3", "avgpool", "fc"]
-    print("1. Color Moment\n2. HoG.\n3. Layer 3.\n4. AvgPool.\n5. FC.")
-    feature = int(input("Select one of the feature space from above:"))
-
-    field_to_extract = feature_names[feature - 1]
-
-    csv_file_name = f"InMemory_Index_Structure_{field_to_extract}_layers{num_layers}_hashes{num_hashes}.csv"
-
-    # Check if the CSV file already exists
-    if not os.path.isfile(csv_file_name):
-        create_lsh_index_csv(features_coll, field_to_extract, csv_file_name)
-    else:
-        print(f"The CSV file '{csv_file_name}' already exists.")
