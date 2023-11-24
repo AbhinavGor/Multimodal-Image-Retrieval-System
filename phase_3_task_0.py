@@ -18,9 +18,6 @@ transforms = transforms.Compose([
             transforms.ToTensor(),
         ])
 
-uri = "mongodb://localhost:27017/cse515_project_phase1"
-
-# Create a new client and connect to the server
 mongo_client = connect_to_mongo()
 
 dbname = mongo_client.cse515_project_phase1
