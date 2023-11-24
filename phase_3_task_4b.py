@@ -167,8 +167,8 @@ def image_search(query_vector, lsh, threshold=1.0, top_l=5):
     #query_vector_flat = query_vector_flat.reshape(1, -1)
     print("Reshaped Query Vector Shape:", query_vector_flat.shape)
 
-    candidates = lsh.query(query_vector_flat.flatten(), threshold)
-    candidates.sort(key=lambda x: euclidean(query_vector_flat.flatten(), x[1]))  # Sort by distance
+    candidates = lsh.query_vectors #lsh.query(query_vector_flat.flatten(), threshold)
+    candidates.sort(key=lambda x: euclidean(query_vector_flat.flatten(), np.array(x[1]).flatten()))  # Sort by distance
 
     top_candidates = candidates[:top_l]
     return top_candidates
@@ -198,8 +198,10 @@ def main():
     top_k = int(input("Enter the number of top images to retrieve (k):"))
     top_candidates = image_search(query_vector, lsh, threshold=1.0, top_l=top_k)
 
+    print(top_candidates)
+
     # Output only the matching image IDs
-    matching_image_ids = [idx for idx, _ in top_candidates]
+    matching_image_ids = [idx[0] for idx in top_candidates]
     print(f"Matching Image IDs: {matching_image_ids}")
 
 if __name__ == "__main__":
