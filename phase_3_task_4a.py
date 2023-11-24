@@ -46,7 +46,7 @@ class EuclideanLSHRefined:
         # Add a vector to the LSH index
         for i, layer_functions in enumerate(self.hash_functions):
             hash_val = self._hash_vector(vector, layer_functions)
-            print(hash_val)
+            # print(hash_val)
             self.hash_tables[i][hash_val].append(vector)
             self.id_hash_tables[i][hash_val].append(image_id)
 
@@ -67,8 +67,8 @@ class EuclideanLSHRefined:
             for id in res_ids: candidates.append(id)
 
         # Optionally limit the number of results
-        if max_results is not None:
-            candidates = list(candidates)[:max_results]
+        # if max_results is not None:
+        #     candidates = list(candidates)[:max_results]
         return candidates
     
     def get_index_structure(self):
@@ -112,16 +112,18 @@ csv_file_name = f"InMemory_Index_Structure_{selected_feature}_layers{num_layers}
 image_features = []
 
 image_features = []
-for document in collection.find({}, {selected_feature: 1}):
+image_ids = []
+for document in collection.find({}, {selected_feature: 1, "image_id": 1}):
     if selected_feature in document:
         image_features.append(document[selected_feature])
+        image_ids.append(document["image_id"])
 
 lsh = EuclideanLSHRefined(num_layers, num_hashes, len(image_features[0]))
 ctr = 0
 for vec in image_features:
+    print(image_ids[ctr])
+    lsh.add_vector(vec, image_ids[ctr])
     ctr += 1
-    print(ctr)
-    lsh.add_vector(vec, ctr*2)
 
 index_structure = lsh.get_index_structure()
     
@@ -135,40 +137,8 @@ query = tuple(np.array(query[selected_feature]).flatten())
 result = lsh.query(query, 100)
 
 print(result)
-# csv_file_path = 'vectors.csv'
-
-# # Writing the vectors to a CSV file
-# with open(csv_file_path, 'w', newline='') as csvfile:
-#     csv_writer = csv.writer(csvfile)
-    
-#     # Write a header if needed
-#     # csv_writer.writerow(['Dimension1', 'Dimension2', 'Dimension3', 'Dimension4', 'Dimension5'])
-
-#     # Write each vector as a row
-#     csv_writer.writerows(result)
-
-# print(len(result))
-# print(len(result[0]))
-
-# df = pd.read_csv("InMemory_Index_Structure_layer3_layers3_hashes3.csv")
-
-# # Function to get Image IDs for an array of vectors
-# def get_image_ids_for_vectors(df, target_vectors):
-#     result = pd.DataFrame(columns=['Vectors', 'Image ID'])
-
-#     for target_vector in target_vectors:
-#         rows = df[df['Vectors'].apply(lambda x: str(list(target_vector)) in x)]
-#         result = pd.concat([result, rows[['Vectors', 'Image ID']]])
-
-#     return result
-
-# result_df = get_image_ids_for_vectors(df, result)
-
-# if not result_df.empty:
-#     print("Image IDs for the given vectors:")
-#     print(result_df)
-# else:
-#     print("No Image IDs found for the given vectors")
+print("Overall images considered: ", len(result))
+print("Unique images considered: ", len(set(result)))
 
 # ID2501, L1, H1, [6, 28, 56, 64, 74, 84, 92, 106, 122, 126, 162, 166, 182, 216, 278, 284, 286, 300, 322, 348, 376, 400, 402, 410, 414, 426, 434, 444, 446, 470, 472, 474, 488, 490, 536, 578, 580, 584, 598, 618, 626, 656, 662, 664, 672, 688, 692, 694, 696, 712, 720, 722, 728, 744, 746, 750, 770, 822, 846, 852, 858, 1112, 1162, 1200, 1206, 1214, 1240, 1254, 1262, 1272, 1288, 1324, 1332, 1352, 1354, 1356, 1394, 1404, 1416, 1418, 1422, 1432, 1440, 1442, 1450, 1468, 1484, 1498, 1542, 1550, 1566, 1572, 1594, 1608, 1642, 1650, 1676, 1678, 1700, 1714]
 # ID2501, L3, H3, [498, 1430, 1504, 1658, 1892, 2246, 4830, 5974, 6418, 7978, 8160, 884, 1036, 1186, 1554, 1644, 2156, 2290, 7312, 1540, 1670, 1792, 2594, 3012, 5352]
