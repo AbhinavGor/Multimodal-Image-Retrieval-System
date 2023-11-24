@@ -20,19 +20,16 @@ class LSH:
         return lambda x: int((np.dot(random_vector, x) + random_offset) / 0.1)
 
     def hash_vector(self, vector, layer_idx):
-        hashes = []
-        for i in range(self.num_hashes):
-            hash_value = self.hash_functions[layer_idx * self.num_hashes + i](vector)
-            hashes.append(hash_value)
-        return tuple(hashes)
+        hash_values = [self.hash_functions[layer_idx * self.num_hashes + i](vector) for i in range(self.num_hashes)]
+        return hash_values
 
     def index_vectors(self, vectors):
-        for layer_idx in range(self.num_layers):
-            for vector_idx, vector in enumerate(vectors):
-                hash_key = self.hash_vector(vector, layer_idx)
-                if hash_key not in self.tables[layer_idx]:
-                    self.tables[layer_idx][hash_key] = []
-                self.tables[layer_idx][hash_key].append((vector_idx, vector))
+        for vector in vectors:
+            for layer_idx in range(self.num_layers):
+                hash_key = tuple(self.hash_vector(vector, layer_idx))
+                #if hash_key not in self.tables[layer_idx]:
+                self.tables[layer_idx][hash_key] = []
+                self.tables[layer_idx][hash_key].append(vector)
 
     def query(self, query_vector, threshold=1.0):
         candidates = set()
