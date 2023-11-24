@@ -72,18 +72,12 @@ def main():
     query_vector = lsh.query_vectors[image_id]
 
     # Perform image search using the LSH index structure
-    top_candidates = image_search(query_vector, lsh, threshold=1.0, top_l=5)
+    top_k = int(input("Enter the number of top images to retrieve (k):"))
+    top_candidates = image_search(query_vector, lsh, threshold=1.0, top_l=top_k)
 
-    # Display the query image and top candidates
-    query_image, _ = caltech_dataset[image_id]
-    query_image = query_image.permute(1, 2, 0).numpy()
-    candidate_images = [caltech_dataset[idx][0].permute(1, 2, 0).numpy() for idx, _ in top_candidates]
-
-    images_to_display = [query_image] + candidate_images
-    titles = ["Query Image"] + [f"Candidate {i+1}" for i in range(len(candidate_images))]
-
-    # Display images
-    display_images(images_to_display, titles)
+    # Output only the matching image IDs
+    matching_image_ids = [idx for idx, _ in top_candidates]
+    print(f"Matching Image IDs: {matching_image_ids}")
 
 if __name__ == "__main__":
     main()
