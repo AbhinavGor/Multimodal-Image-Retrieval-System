@@ -27,7 +27,6 @@ X_test = X[test_mask]
 y_test = y_numeric[test_mask]
 IDs = IDs[test_mask]
 
-print(X_test.shape)
 # Create a SVM classifier
 clf = MultiClassSVM(C=2000)
 
