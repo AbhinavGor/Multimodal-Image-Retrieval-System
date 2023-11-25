@@ -66,7 +66,7 @@ def get_neighbors(data, point, eps):
             neighbors.append(p)
     return neighbors
 
-def find_explained_variance(data):
+def find_explained_variance(image_data):
     image_data = np.array(image_data)
 
     n_components = min(image_data.shape[0], image_data.shape[1])  # Use the smaller of the two dimensions

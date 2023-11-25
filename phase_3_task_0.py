@@ -48,6 +48,7 @@ match task_selection:
             except:
                 print(image)
 
+
 n_components, explained_variance, singular_values = find_explained_variance(image_data)
 plt.figure()
 plt.plot(range(1, n_components + 1), explained_variance, marker='.')
