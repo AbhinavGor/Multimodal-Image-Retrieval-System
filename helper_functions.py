@@ -1,3 +1,6 @@
+from matplotlib import pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.widgets import TextBox
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from sklearn.decomposition import TruncatedSVD

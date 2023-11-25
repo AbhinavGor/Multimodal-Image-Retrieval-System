@@ -1,21 +1,43 @@
 from collections import defaultdict
 import csv
+import math
 import random
 import numpy as np
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.widgets import Button, TextBox
+from PIL import Image
+import torchvision
+import torch
+from torchvision import datasets, models
+import torchvision.transforms as transforms
 
 from database_connection import connect_to_mongo
 from helper_functions import top_k_min_indices
 from lsh import EuclideanLSHRefined
 
 np.set_printoptions(threshold=np.inf)
+
+def on_button_click(event):
+    global feedback_list
+    feedback_list.append(text_box.text)
+    plt.close()
+
+def on_click(event):
+    global current_coords
+    current_coords = (event.xdata, event.ydata)
+    rect = Rectangle((current_coords[0] - 0.5, current_coords[1] - 0.5), 1, 1, linewidth=1, edgecolor='r', facecolor='none')
+    # ax.add_patch(rect)
+    plt.draw()
+
 mongo_client = connect_to_mongo()
 
 dbname = mongo_client.cse515_project_phase1
 collection = dbname.phase2_features
 rep_image_collection = dbname.phase2_representative_images
+
+feedback_list = []
 
 num_layers = int(input("Enter the number of layers: "))
 num_hashes = int(input("Enter the number of hashes per layer: "))
@@ -61,27 +83,75 @@ print("Unique images considered: ", len(set(result_image_ids)))
 
 collection = dbname.phase2_features
 result_image_features = collection.find({"image_id" : { "$in" :  result_image_ids}})
-
-final_vectors = []
-final_ids = []
+count = collection.count_documents({"image_id" : { "$in" :  result_image_ids}})
+similarities = []
+similarity_ids = []
+similarity_vectors = []
 for i in result_image_features:
-    if(len(i[selected_feature]) > 0):
-        final_vectors.append(i[selected_feature])
-        final_ids.append(i["image_id"])
-    else:
-        print("No feat: ", i["image_id"])
+    similarities.append(math.dist(np.array(query).flatten(), np.array(i[selected_feature]).flatten()))
+    similarity_ids.append(int(i["image_id"]))
+    similarity_vectors.append(np.array(i[selected_feature]).flatten().tolist())
 
-df = pd.DataFrame({'ImageID': final_ids, 'FeatureVector': final_vectors})
+top_k_indices = top_k_min_indices(similarities, 10)
+
+# Loading the dataset
+dataset = torchvision.datasets.Caltech101(
+    '/home/abhinavgorantla/hdd/ASU/Fall 23 - 24/CSE515 - Multimedia and Web Databases/project/caltech101', download=True)
+data_loader = torch.utils.data.DataLoader(
+    dataset, batch_size=4, shuffle=True, num_workers=8)
+
+top_k_ids = []
+top_k_vectors = []
+
+for i in top_k_indices:
+    img, label = dataset[similarity_ids[i]]
+    top_k_ids.append(similarity_ids[i])
+    top_k_vectors.append(similarity_vectors[i])
+    
+    fig, ax = plt.subplots()
+    img = torch.tensor(np.array(img))
+
+    ax.imshow((np.squeeze(img)))
+
+    fig.canvas.mpl_connect('button_press_event', on_click)
+
+    # Add a button for user feedback
+    ax_button = plt.axes([0.81, 0.05, 0.1, 0.075])
+    button = Button(ax_button, 'Submit Feedback')
+    button.on_clicked(on_button_click)
+
+    # Add a text box for user input
+    ax_textbox = plt.axes([0.1, 0.01, 0.65, 0.05])
+    text_box = TextBox(ax_textbox, 'Feedback: ', initial="")
+
+    plt.show()
+
+print(feedback_list)
+# final_vectors = []
+# final_ids = []
+# for i in result_image_features:
+#     if(len(i[selected_feature]) > 0):
+#         final_vectors.append(i[selected_feature])
+#         final_ids.append(i["image_id"])
+#     else:
+#         print("No feat: ", i["image_id"])
+
+df = pd.DataFrame({'ImageID': similarity_ids, 'FeatureVector': similarity_vectors})
 df['relevance'] = ''
 
-# Randomly assign relevances "R+", "R-", "I-", "I+" to 16 rows
-random_rows = np.random.choice(df.index, 16, replace=False)
-# Assign labels "A", "B", "C", "D" to exactly 4 rows each
-label_counts = {'R+': 4, 'R-': 4, 'I-': 4, 'I+': 4}
+# # Randomly assign relevances "R+", "R-", "I-", "I+" to 16 rows
+# random_rows = np.random.choice(df.index, 16, replace=False)
+# # Assign labels "A", "B", "C", "D" to exactly 4 rows each
+# label_counts = {'R+': 4, 'R-': 4, 'I-': 4, 'I+': 4}
 
-for label, count in label_counts.items():
-    indices = np.random.choice(df.index[df['relevance'] == ''], count, replace=False)
-    df.loc[indices, 'relevance'] = label
+# for label, count in label_counts.items():
+#     indices = np.random.choice(df.index[df['relevance'] == ''], count, replace=False)
+#     df.loc[indices, 'relevance'] = label
 
+for i in range(len(feedback_list)):
+    image_id = top_k_ids[i]
+    new_relevance = feedback_list[i]
+    
+    df.loc[df['ImageID'] == image_id, 'relevance'] = new_relevance
 # Save the DataFrame to a CSV file
 df.to_csv('task_4_output.csv', index=False)

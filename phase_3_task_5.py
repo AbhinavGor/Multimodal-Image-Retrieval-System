@@ -13,7 +13,7 @@ class MultiClassSVM:
     def fit(self, X, y):
         classes = np.unique(y)
         num_classes = len(classes)
-        print("Classes", num_classes)
+        
         num_samples, num_features = X.shape
 
         for i in range(num_classes):
@@ -48,6 +48,7 @@ class MultiClassSVM:
 df = pd.read_csv('task_4_output.csv')
 df["FeatureVector"] = df["FeatureVector"].apply(ast.literal_eval)
 # Extract feature vectors and labels
+IDs = np.array(df['ImageID'].tolist())
 X = np.array(df['FeatureVector'].tolist())
 y = np.array(df['relevance'])
 
@@ -64,6 +65,7 @@ y_train = y_numeric[train_mask]
 test_mask = ~train_mask
 X_test = X[test_mask]
 y_test = y_numeric[test_mask]
+IDs = IDs[test_mask]
 
 print(X_test.shape)
 # Create a SVM classifier
@@ -74,4 +76,13 @@ clf.fit(X_train, y_train)
 
 # Make predictions on the test set
 y_pred = clf.predict(X_test)
+
+classIds = [[] for i in range(4)]
+# print(y_pred[0])
+y_pred = list(y_pred[0])
 print(y_pred)
+for i in range(len(y_pred)):
+    y_pred[i]
+    classIds[int(y_pred[i])].append(IDs[i])
+print(classIds[0])
+print(classIds[1])

@@ -1,6 +1,6 @@
 import numpy as np
 from collections import defaultdict
-import random
+import random, csv
 class EuclideanLSHRefined:
     def __init__(self, L, h, dim):
         self.L = L  # Number of layers
