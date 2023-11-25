@@ -1,7 +1,5 @@
 import pandas as pd
 import numpy as np
-import cvxpy as cp
-from sklearn.metrics import accuracy_score
 import ast
 
 from MultiClassSVM import MultiClassSVM
