@@ -59,7 +59,7 @@ print(f'Estimated number of noise points: {n_noise}')
 X = np.array(X_normalized)
 # Apply Multi-Dimensional Scaling (MDS) for dimensionality reduction
 # Reduce the data to 2 dimensions for visualization
-# mds = MDS(n_components=2, max_iter=500, n_init=10, verbose=2, n_jobs=10)
+X_mds = MDS(n_components=2, max_iter=500, n_init=10, verbose=2, n_jobs=10)
 distance_matrix = squareform(pdist(X, 'euclidean'))
 distance_matrix = 0.5 * \
     (distance_matrix + distance_matrix.T)  # Make it symmetric
@@ -72,7 +72,7 @@ num_iterations = 100
 num_init = 5
 
 
-X_mds = classical_mds(X)
+# X_mds = classical_mds(X)
 
 # Create a scatter plot to visualize the clusters
 plt.figure(figsize=(10, 6))
