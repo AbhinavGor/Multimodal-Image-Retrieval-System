@@ -92,7 +92,7 @@ for i in result_image_features:
     similarity_ids.append(int(i["image_id"]))
     similarity_vectors.append(np.array(i[selected_feature]).flatten().tolist())
 
-top_k_indices = top_k_min_indices(similarities, 10)
+top_k_indices = top_k_min_indices(similarities)
 
 # Loading the dataset
 dataset = torchvision.datasets.Caltech101(
@@ -102,8 +102,11 @@ data_loader = torch.utils.data.DataLoader(
 
 top_k_ids = []
 top_k_vectors = []
-
-for i in top_k_indices:
+i = 0
+random_indices = np.random.permutation(np.arange(0, len(similarity_ids)))
+for i in random_indices:
+    if len(np.unique(feedback_list)) == 4:
+        break
     img, label = dataset[similarity_ids[i]]
     top_k_ids.append(similarity_ids[i])
     top_k_vectors.append(similarity_vectors[i])
@@ -125,7 +128,7 @@ for i in top_k_indices:
     text_box = TextBox(ax_textbox, 'Feedback: ', initial="")
 
     plt.show()
-
+    i+=1
 print(feedback_list)
 # final_vectors = []
 # final_ids = []
