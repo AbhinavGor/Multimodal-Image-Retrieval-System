@@ -148,23 +148,9 @@ def classical_mds(data, n_components=2, max_iterations=1500, n_init=1, verbose=T
 
     return best_Y
 
-# # Example usage
-# np.random.seed(42)
-# # Generate a random distance matrix
-# distance_matrix = np.random.rand(10, 10)
-# distance_matrix = 0.5 * (distance_matrix + distance_matrix.T)  # Make it symmetric
-
-# # Specify the number of dimensions
-# num_dimensions = 2
-
-# # Specify the number of iterations and random initializations
-# num_iterations = 100
-# num_init = 5
-
-# # Run classical MDS
-# embedding = classical_mds(distance_matrix, num_dimensions, max_iterations=num_iterations, n_init=num_init)
-# print("Final Embedding:")
-# print(embedding)
-def top_k_min_indices(arr, k):
-    indices = np.argpartition(arr, k)[:k]
+def top_k_min_indices(arr, k = None):
+    if k is not None:
+        indices = np.argpartition(arr, k)[:k]
+    else:
+        indices = np.argpartition(arr, (len(arr) - 1))
     return indices
