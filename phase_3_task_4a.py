@@ -73,7 +73,8 @@ lsh.save_index_to_csv(csv_file_name)
 print("In-memory Index Structure is saved to file", csv_file_name)
 
 collection = dbname.phase3_odd_features
-query = collection.find_one({"image_id": "2501"})
+query_id = str(input("Enter the odd query image ID: "))
+query = collection.find_one({"image_id": str(query_id)})
 query = tuple(np.array(query[selected_feature]).flatten())
 result_image_ids, result_feature_vectors = lsh.query(query, 100)
 
@@ -84,15 +85,20 @@ print("Unique images considered: ", len(set(result_image_ids)))
 collection = dbname.phase2_features
 result_image_features = collection.find({"image_id" : { "$in" :  result_image_ids}})
 count = collection.count_documents({"image_id" : { "$in" :  result_image_ids}})
+
 similarities = []
-similarity_ids = []
-similarity_vectors = []
+final_result_image_ids = []
+final_result_image_feature_vectors = []
 for i in result_image_features:
     similarities.append(math.dist(np.array(query).flatten(), np.array(i[selected_feature]).flatten()))
-    similarity_ids.append(int(i["image_id"]))
-    similarity_vectors.append(np.array(i[selected_feature]).flatten().tolist())
+    final_result_image_ids.append(int(i["image_id"]))
+    final_result_image_feature_vectors.append(np.array(i[selected_feature]).flatten().tolist())
 
 top_k_indices = top_k_min_indices(similarities)
+
+top_k_image_ids = [final_result_image_ids[id] for id in top_k_indices]
+for i in top_k_image_ids: print(i, end=" ")
+top_k_image_feature_vectors = [final_result_image_feature_vectors[id] for id in top_k_indices]
 
 # Loading the dataset
 dataset = torchvision.datasets.Caltech101(
@@ -100,16 +106,22 @@ dataset = torchvision.datasets.Caltech101(
 data_loader = torch.utils.data.DataLoader(
     dataset, batch_size=4, shuffle=True, num_workers=8)
 
-top_k_ids = []
-top_k_vectors = []
+relevance_ids = []
+relevance_vectors = []
 i = 0
-random_indices = np.random.permutation(np.arange(0, len(similarity_ids)))
-for i in random_indices:
+
+for i in range(min(10, len(top_k_image_ids))):
     if len(np.unique(feedback_list)) == 4:
-        break
-    img, label = dataset[similarity_ids[i]]
-    top_k_ids.append(similarity_ids[i])
-    top_k_vectors.append(similarity_vectors[i])
+        if feedback_list.count('R+') > 4:
+            break
+        val = True
+        res = [bool(feedback_list.count(j) > 2) for j in np.unique(feedback_list)]
+        for k in res: val &= k
+        if val:
+            break
+    img, label = dataset[top_k_image_ids[i]]
+    relevance_ids.append(top_k_image_ids[i])
+    relevance_vectors.append(top_k_image_feature_vectors[i])
     
     fig, ax = plt.subplots()
     img = torch.tensor(np.array(img))
@@ -128,31 +140,43 @@ for i in random_indices:
     text_box = TextBox(ax_textbox, 'Feedback: ', initial="")
 
     plt.show()
-    i+=1
-print(feedback_list)
-# final_vectors = []
-# final_ids = []
-# for i in result_image_features:
-#     if(len(i[selected_feature]) > 0):
-#         final_vectors.append(i[selected_feature])
-#         final_ids.append(i["image_id"])
-#     else:
-#         print("No feat: ", i["image_id"])
 
-df = pd.DataFrame({'ImageID': similarity_ids, 'FeatureVector': similarity_vectors})
+for i in range(20, min(35, len(top_k_image_ids))):
+    if len(np.unique(feedback_list)) == 4:
+        if feedback_list.count('R+') > 4:
+            break
+        val = True
+        res = [bool(feedback_list.count(j) > 2) for j in np.unique(feedback_list)]
+        for k in res: val &= k
+        if val:
+            break
+    img, label = dataset[top_k_image_ids[i]]
+    relevance_ids.append(top_k_image_ids[i])
+    relevance_vectors.append(top_k_image_feature_vectors[i])
+    
+    fig, ax = plt.subplots()
+    img = torch.tensor(np.array(img))
+
+    ax.imshow((np.squeeze(img)))
+
+    fig.canvas.mpl_connect('button_press_event', on_click)
+
+    # Add a button for user feedback
+    ax_button = plt.axes([0.81, 0.05, 0.1, 0.075])
+    button = Button(ax_button, 'Submit Feedback')
+    button.on_clicked(on_button_click)
+
+    # Add a text box for user input
+    ax_textbox = plt.axes([0.1, 0.01, 0.65, 0.05])
+    text_box = TextBox(ax_textbox, 'Feedback: ', initial="")
+
+    plt.show()
+
+df = pd.DataFrame({'ImageID': final_result_image_ids, 'FeatureVector': final_result_image_feature_vectors})
 df['relevance'] = ''
 
-# # Randomly assign relevances "R+", "R-", "I-", "I+" to 16 rows
-# random_rows = np.random.choice(df.index, 16, replace=False)
-# # Assign labels "A", "B", "C", "D" to exactly 4 rows each
-# label_counts = {'R+': 4, 'R-': 4, 'I-': 4, 'I+': 4}
-
-# for label, count in label_counts.items():
-#     indices = np.random.choice(df.index[df['relevance'] == ''], count, replace=False)
-#     df.loc[indices, 'relevance'] = label
-
 for i in range(len(feedback_list)):
-    image_id = top_k_ids[i]
+    image_id = relevance_ids[i]
     new_relevance = feedback_list[i]
     
     df.loc[df['ImageID'] == image_id, 'relevance'] = new_relevance

@@ -150,7 +150,7 @@ def classical_mds(data, n_components=2, max_iterations=1500, n_init=1, verbose=T
 
 def top_k_min_indices(arr, k = None):
     if k is not None:
-        indices = np.argpartition(arr, k)[:k]
+        indices = np.argsort(arr)[:k]
     else:
-        indices = np.argpartition(arr, (len(arr) - 1))
+        indices = np.argsort(arr)[:len(arr)]
     return indices

@@ -1,6 +1,7 @@
 from collections import defaultdict
 import numpy as np
 from sklearn.cluster import DBSCAN
+from sklearn.metrics import pairwise_distances
 from sklearn.preprocessing import StandardScaler
 from sklearn.manifold import MDS
 import matplotlib.pyplot as plt
@@ -59,38 +60,18 @@ print(f'Estimated number of noise points: {n_noise}')
 X = np.array(X_normalized)
 # Apply Multi-Dimensional Scaling (MDS) for dimensionality reduction
 # Reduce the data to 2 dimensions for visualization
-X_mds = MDS(n_components=2, max_iter=500, n_init=10, verbose=2, n_jobs=10)
-distance_matrix = squareform(pdist(X, 'euclidean'))
-distance_matrix = 0.5 * \
-    (distance_matrix + distance_matrix.T)  # Make it symmetric
+mds = MDS(n_components=2, max_iter=500, n_init=10, verbose=2, n_jobs=10)
 
-# Specify the number of dimensions
-num_dimensions = 2
+distances = pairwise_distances(image_data, metric="euclidean")
+X_2d = mds.fit_transform(distances)
 
-# Specify the number of iterations and random initializations
-num_iterations = 100
-num_init = 5
+unique_labels = np.unique(labels)
 
-
-# X_mds = classical_mds(X)
-
-# Create a scatter plot to visualize the clusters
-plt.figure(figsize=(10, 6))
-
-# Plot points for each cluster with different colors
-print(labels)
-unique_labels = set(labels)
+plt.figure(figsize=(12, 8))
 for label in unique_labels:
-    if label == -1:
-        # Plot noise points in black
-        plt.scatter(X_mds[labels == label, 0],
-                    X_mds[labels == label, 1], c='k', label='Noise')
-    else:
-        # Plot points in each cluster with different colors
-        plt.scatter(X_mds[labels == label, 0],
-                    X_mds[labels == label, 1], label=f'Cluster {label}')
+    mask = (labels == label)
+    plt.scatter(X_2d[mask, 0], X_2d[mask, 1], label=f"Cluster {label}", s=50)
 
-plt.title('DBScan Clustering Results with MDS Visualization')
+plt.title("title")
 plt.legend()
-plt.grid(True)
 plt.show()

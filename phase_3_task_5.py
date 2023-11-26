@@ -3,6 +3,7 @@ import numpy as np
 import ast
 
 from MultiClassSVM import MultiClassSVM
+from output_plotter import output_plotter
 
 # Load the data from the CSV file
 df = pd.read_csv('task_4_output.csv')
@@ -20,7 +21,7 @@ y_numeric = np.array([label_mapping[label] if label in label_mapping else -1 for
 train_mask = y_numeric != -1
 X_train = X[train_mask]
 y_train = y_numeric[train_mask]
-
+print(y_train)
 # Filter rows without labels for testing
 test_mask = ~train_mask
 X_test = X[test_mask]
@@ -28,7 +29,7 @@ y_test = y_numeric[test_mask]
 IDs = IDs[test_mask]
 
 # Create a SVM classifier
-clf = MultiClassSVM(C=2000)
+clf = MultiClassSVM(C=10000)
 
 # Train the classifier
 clf.fit(X_train, y_train)
@@ -37,11 +38,12 @@ clf.fit(X_train, y_train)
 y_pred = clf.predict(X_test)
 
 classIds = [[] for i in range(4)]
-# print(y_pred[0])
+
 y_pred = list(y_pred[0])
 print(y_pred)
 for i in range(len(y_pred)):
     y_pred[i]
     classIds[int(y_pred[i])].append(IDs[i])
+print(len(classIds[0]))
 print(classIds[0])
-print(classIds[1])
+output_plotter(classIds[0])
