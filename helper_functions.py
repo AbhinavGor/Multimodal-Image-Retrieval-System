@@ -154,3 +154,43 @@ def top_k_min_indices(arr, k = None):
     else:
         indices = np.argsort(arr)[:len(arr)]
     return indices
+
+def euclidean_distance(point1, point2):
+    return sum((x - y) ** 2 for x, y in zip(point1, point2)) ** 0.5
+
+def range_query(data, point, epsilon):
+    neighbors = []
+    for i, other_point in enumerate(data):
+        if euclidean_distance(point, other_point) <= epsilon:
+            neighbors.append(i)
+    return neighbors
+
+def dbscan(data, epsilon, min_samples):
+    labels = [None] * len(data)
+    cluster_id = 0
+
+    for i, point in enumerate(data):
+        if labels[i] is not None:
+            continue
+
+        neighbors = range_query(data, point, epsilon)
+
+        if len(neighbors) < min_samples:
+            labels[i] = -1  # Mark as noise
+        else:
+            cluster_id += 1
+            labels[i] = cluster_id
+
+            for neighbor in neighbors:
+                if labels[neighbor] == -1:
+                    labels[neighbor] = cluster_id
+                if labels[neighbor] is not None:
+                    continue
+
+                labels[neighbor] = cluster_id
+                new_neighbors = range_query(data, data[neighbor], epsilon)
+
+                if len(new_neighbors) >= min_samples:
+                    neighbors.extend(new_neighbors)
+
+    return labels

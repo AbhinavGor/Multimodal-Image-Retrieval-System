@@ -1,15 +1,11 @@
-from collections import defaultdict
-import numpy as np
-from sklearn.cluster import DBSCAN
-from sklearn.metrics import pairwise_distances
-from sklearn.preprocessing import StandardScaler
-from sklearn.manifold import MDS
-import matplotlib.pyplot as plt
-from scipy.spatial.distance import pdist, squareform
-import math
+# -*- coding: utf-8 -*-
 
-from database_connection import connect_to_mongo
-from helper_functions import classical_mds
+# A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise
+# Martin Ester, Hans-Peter Kriegel, Jörg Sander, Xiaowei Xu
+# dbscan: density based spatial clustering of applications with noise
+
+import numpy as np
+import math
 
 UNCLASSIFIED = False
 NOISE = None
@@ -24,7 +20,7 @@ def _region_query(m, point_id, eps):
     n_points = m.shape[1]
     seeds = []
     for i in range(0, n_points):
-        if _eps_neighborhood(m[point_id], m[i], eps):
+        if _eps_neighborhood(m[:,point_id], m[:,i], eps):
             seeds.append(i)
     return seeds
 
@@ -70,32 +66,17 @@ def DBSCAN(m, eps, min_points):
     column vector in m.
     """
     cluster_id = 1
-    n_points = m.shape[0]
+    n_points = m.shape[1]
     classifications = [UNCLASSIFIED] * n_points
     for point_id in range(0, n_points):
-        print(point_id)
-        # point = m[point_id]
+        point = m[:,point_id]
         if classifications[point_id] == UNCLASSIFIED:
             if _expand_cluster(m, classifications, point_id, cluster_id, eps, min_points):
                 cluster_id = cluster_id + 1
     return classifications
 
-mongo_client = connect_to_mongo()
-
-dbname = mongo_client.cse515_project_phase1
-collection = dbname.phase2_features
-rep_image_collection = dbname.phase2_representative_images
-
-image_data = []
-even_indices = []
-label_indices = []
-for image in collection.find():
-    print(image["image_id"])
-    even_indices.append(int(image['image_id']))
-    label_indices.append(int(image['target']))
-    image_data.append(np.array(image["layer3"]).flatten())
-
-print(DBSCAN(np.array(image_data[:1500]), 4, 2))
-
-# dbscan.fit(image_data)
-# # plot_clusters(image_data, dbscan.labels_, dbscan.components_)
+def test_dbscan():
+    m = np.matrix('1 1.2 0.8 3.7 3.9 3.6 10; 1.1 0.8 1 4 3.9 4.1 10')
+    eps = 0.5
+    min_points = 2
+    assert DBSCAN(m, eps, min_points) == [1, 1, 1, 2, 2, 2, None]
