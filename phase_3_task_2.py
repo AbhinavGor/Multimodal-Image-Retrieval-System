@@ -1,101 +1,98 @@
-from collections import defaultdict
-import numpy as np
-from sklearn.cluster import DBSCAN
-from sklearn.metrics import pairwise_distances
-from sklearn.preprocessing import StandardScaler
-from sklearn.manifold import MDS
-import matplotlib.pyplot as plt
-from scipy.spatial.distance import pdist, squareform
-import math
-
 from database_connection import connect_to_mongo
-from helper_functions import classical_mds
+import numpy as np
 
-UNCLASSIFIED = False
-NOISE = None
 
-def _dist(p,q):
-	return math.sqrt(np.power(p-q,2).sum())
+class DBSCAN:
+    def __init__(self, eps, min_samples):
+        self.eps = eps
+        self.min_samples = min_samples
+        self.labels = None
+        self.visited = set()
 
-def _eps_neighborhood(p,q,eps):
-	return _dist(p,q) < eps
+    def fit(self, X):
+        self.labels = np.full(X.shape[0], -1, dtype=int)
+        cluster_id = 0
 
-def _region_query(m, point_id, eps):
-    n_points = m.shape[1]
-    seeds = []
-    for i in range(0, n_points):
-        if _eps_neighborhood(m[point_id], m[i], eps):
-            seeds.append(i)
-    return seeds
+        for i in range(X.shape[0]):
+            print(i)
+            if i not in self.visited:
+                self.visited.add(i)
+                neighbors = self.region_query(X, i)
 
-def _expand_cluster(m, classifications, point_id, cluster_id, eps, min_points):
-    seeds = _region_query(m, point_id, eps)
-    if len(seeds) < min_points:
-        classifications[point_id] = NOISE
-        return False
-    else:
-        classifications[point_id] = cluster_id
-        for seed_id in seeds:
-            classifications[seed_id] = cluster_id
-            
-        while len(seeds) > 0:
-            current_point = seeds[0]
-            results = _region_query(m, current_point, eps)
-            if len(results) >= min_points:
-                for i in range(0, len(results)):
-                    result_point = results[i]
-                    if classifications[result_point] == UNCLASSIFIED or \
-                       classifications[result_point] == NOISE:
-                        if classifications[result_point] == UNCLASSIFIED:
-                            seeds.append(result_point)
-                        classifications[result_point] = cluster_id
-            seeds = seeds[1:]
-        return True
-        
-def DBSCAN(m, eps, min_points):
-    """Implementation of Density Based Spatial Clustering of Applications with Noise
-    See https://en.wikipedia.org/wiki/DBSCAN
-    
-    scikit-learn probably has a better implementation
-    
-    Uses Euclidean Distance as the measure
-    
-    Inputs:
-    m - A matrix whose columns are feature vectors
-    eps - Maximum distance two points can be to be regionally related
-    min_points - The minimum number of points to make a cluster
-    
-    Outputs:
-    An array with either a cluster id number or dbscan.NOISE (None) for each
-    column vector in m.
-    """
-    cluster_id = 1
-    n_points = m.shape[0]
-    classifications = [UNCLASSIFIED] * n_points
-    for point_id in range(0, n_points):
-        print(point_id)
-        # point = m[point_id]
-        if classifications[point_id] == UNCLASSIFIED:
-            if _expand_cluster(m, classifications, point_id, cluster_id, eps, min_points):
-                cluster_id = cluster_id + 1
-    return classifications
+                if len(neighbors) < self.min_samples:
+                    self.labels[i] = 0  # Mark as noise
+                else:
+                    cluster_id += 1
+                    self.expand_cluster(X, i, neighbors, cluster_id)
+
+        return self.labels
+
+    def region_query(self, X, center_idx):
+        neighbors = []
+        for i in range(X.shape[0]):
+            if np.linalg.norm(X[center_idx] - X[i]) < self.eps:
+                neighbors.append(i)
+        return neighbors
+
+    def expand_cluster(self, X, center_idx, neighbors, cluster_id):
+        self.labels[center_idx] = cluster_id
+
+        i = 0
+        while i < len(neighbors):
+            neighbor_idx = neighbors[i]
+
+            if neighbor_idx not in self.visited:
+                self.visited.add(neighbor_idx)
+                new_neighbors = self.region_query(X, neighbor_idx)
+
+                if len(new_neighbors) >= self.min_samples:
+                    neighbors.extend(new_neighbors)
+
+            if self.labels[neighbor_idx] == -1:
+                self.labels[neighbor_idx] = cluster_id
+
+            i += 1
+
 
 mongo_client = connect_to_mongo()
 
 dbname = mongo_client.cse515_project_phase1
 collection = dbname.phase2_features
-rep_image_collection = dbname.phase2_representative_images
 
-image_data = []
-even_indices = []
-label_indices = []
-for image in collection.find():
-    print(image["image_id"])
-    even_indices.append(int(image['image_id']))
-    label_indices.append(int(image['target']))
-    image_data.append(np.array(image["layer3"]).flatten())
+features = collection.find()
 
-print(DBSCAN(np.array(image_data[:1500]), 4, 2))
+image_features = []
 
-# dbscan.fit(image_data)
-# # plot_clusters(image_data, dbscan.labels_, dbscan.components_)
+for i in features:
+    print(i["image_id"])
+    image_features.append(np.array(i["layer3"]).flatten())
+# Example usage:
+if __name__ == "__main__":
+    # Generate some random data for testing
+    np.random.seed(42)
+    X = np.random.rand(100, 1000)
+
+    # Instantiate and fit the DBSCAN model
+    # # clusters = 5
+    # eps = 2.4
+    # min_samples = 10
+    #
+    # # clusters = 9
+    # eps = 2.4
+    # min_samples = 6
+    #
+    # # clusters = 6
+    # eps = 2.6
+    # min_samples = 6
+    #
+    # # clusters = 10
+    # eps = 2.37
+    # min_samples = 6
+    eps = 2.37
+    min_samples = 6
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit(np.array(image_features))
+
+    # Print the resulting labels
+    print("DBSCAN Labels:", list(labels))
+    print(len(np.array(np.unique(labels)).tolist()))
