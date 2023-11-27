@@ -1,3 +1,6 @@
+from matplotlib import pyplot as plt
+from sklearn.calibration import LabelEncoder
+from sklearn.manifold import MDS
 from database_connection import connect_to_mongo
 import numpy as np
 
@@ -88,11 +91,31 @@ if __name__ == "__main__":
     # # clusters = 10
     # eps = 2.37
     # min_samples = 6
-    eps = 2.37
-    min_samples = 6
+    eps = 2.4
+    min_samples = 10
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     labels = dbscan.fit(np.array(image_features))
 
     # Print the resulting labels
     print("DBSCAN Labels:", list(labels))
     print(len(np.array(np.unique(labels)).tolist()))
+
+    label_encoder = LabelEncoder()
+    class_labels_encoded = label_encoder.fit_transform(labels)
+    print("Encoded labels ", class_labels_encoded)
+    mds = MDS(verbose=1, n_components=2, n_init=2, max_iter=500,
+              dissimilarity="euclidean")
+    print(mds)
+    feature_vectors_2d = mds.fit_transform(image_features)
+
+    # Scatter plot the points with different colors for each class
+    for label in np.unique(class_labels_encoded):
+        indices = class_labels_encoded == label
+        plt.scatter(feature_vectors_2d[indices, 0],
+                    feature_vectors_2d[indices, 1], label=label_encoder.classes_[label])
+
+    plt.title('MDS Visualization of Feature Vectors')
+    plt.xlabel('MDS Dimension 1')
+    plt.ylabel('MDS Dimension 2')
+    plt.legend()
+    plt.show()
