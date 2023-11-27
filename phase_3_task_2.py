@@ -103,8 +103,8 @@ if __name__ == "__main__":
     label_encoder = LabelEncoder()
     class_labels_encoded = label_encoder.fit_transform(labels)
     print("Encoded labels ", class_labels_encoded)
-    mds = MDS(verbose=1, n_components=2, n_init=2, max_iter=500,
-              dissimilarity="euclidean")
+    mds = MDS(verbose=2, n_components=2, n_init=6, max_iter=400,
+              dissimilarity="euclidean", n_jobs=8)
     print(mds)
     feature_vectors_2d = mds.fit_transform(image_features)
 
