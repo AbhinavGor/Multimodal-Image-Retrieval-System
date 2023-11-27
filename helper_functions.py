@@ -1,3 +1,6 @@
+from matplotlib import pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib.widgets import TextBox
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from sklearn.decomposition import TruncatedSVD
@@ -63,7 +66,7 @@ def get_neighbors(data, point, eps):
             neighbors.append(p)
     return neighbors
 
-def find_explained_variance(data):
+def find_explained_variance(image_data):
     image_data = np.array(image_data)
 
     n_components = min(image_data.shape[0], image_data.shape[1])  # Use the smaller of the two dimensions
@@ -145,23 +148,49 @@ def classical_mds(data, n_components=2, max_iterations=1500, n_init=1, verbose=T
 
     return best_Y
 
-# # Example usage
-# np.random.seed(42)
-# # Generate a random distance matrix
-# distance_matrix = np.random.rand(10, 10)
-# distance_matrix = 0.5 * (distance_matrix + distance_matrix.T)  # Make it symmetric
-
-# # Specify the number of dimensions
-# num_dimensions = 2
-
-# # Specify the number of iterations and random initializations
-# num_iterations = 100
-# num_init = 5
-
-# # Run classical MDS
-# embedding = classical_mds(distance_matrix, num_dimensions, max_iterations=num_iterations, n_init=num_init)
-# print("Final Embedding:")
-# print(embedding)
-def top_k_min_indices(arr, k):
-    indices = np.argpartition(arr, k)[:k]
+def top_k_min_indices(arr, k = None):
+    if k is not None:
+        indices = np.argsort(arr)[:k]
+    else:
+        indices = np.argsort(arr)[:len(arr)]
     return indices
+
+def euclidean_distance(point1, point2):
+    return sum((x - y) ** 2 for x, y in zip(point1, point2)) ** 0.5
+
+def range_query(data, point, epsilon):
+    neighbors = []
+    for i, other_point in enumerate(data):
+        if euclidean_distance(point, other_point) <= epsilon:
+            neighbors.append(i)
+    return neighbors
+
+def dbscan(data, epsilon, min_samples):
+    labels = [None] * len(data)
+    cluster_id = 0
+
+    for i, point in enumerate(data):
+        if labels[i] is not None:
+            continue
+
+        neighbors = range_query(data, point, epsilon)
+
+        if len(neighbors) < min_samples:
+            labels[i] = -1  # Mark as noise
+        else:
+            cluster_id += 1
+            labels[i] = cluster_id
+
+            for neighbor in neighbors:
+                if labels[neighbor] == -1:
+                    labels[neighbor] = cluster_id
+                if labels[neighbor] is not None:
+                    continue
+
+                labels[neighbor] = cluster_id
+                new_neighbors = range_query(data, data[neighbor], epsilon)
+
+                if len(new_neighbors) >= min_samples:
+                    neighbors.extend(new_neighbors)
+
+    return labels

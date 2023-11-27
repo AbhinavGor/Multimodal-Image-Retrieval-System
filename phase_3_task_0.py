@@ -18,9 +18,6 @@ transforms = transforms.Compose([
             transforms.ToTensor(),
         ])
 
-uri = "mongodb://localhost:27017/cse515_project_phase1"
-
-# Create a new client and connect to the server
 mongo_client = connect_to_mongo()
 
 dbname = mongo_client.cse515_project_phase1
@@ -51,24 +48,6 @@ match task_selection:
             except:
                 print(image)
 
-# n_components = min(len(image_data), len(image_data[0]))
-# # Perform PCA
-# pca = PCA(n_components=n_components)
-# pca.fit(image_data)
-
-# # Explained variance ratio
-# explained_variance_ratio = pca.explained_variance_ratio_
-
-# # Plot explained variance ratio to decide the intrinsic dimensionality
-# cum_sum = np.cumsum(explained_variance_ratio)
-# plt.plot(cum_sum)
-# intrinsic_dim = find_lowest_index_greater_than(cum_sum, 0.95)
-# plt.xlabel("Number of Principal Components")
-# plt.ylabel("Explained Variance Ratio")
-# plt.axhline(y=0.95, color='red', linestyle='dotted', label='y = 0.95')
-# plt.axvline(x=intrinsic_dim, color='green', linestyle='dotted', label='intrinsic_dim')
-# plt.grid()
-# plt.show()
 
 n_components, explained_variance, singular_values = find_explained_variance(image_data)
 plt.figure()
