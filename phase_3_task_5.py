@@ -15,21 +15,23 @@ y = np.array(df['relevance'])
 
 # Map labels to integers for training the SVM
 label_mapping = {'R+': 0, 'R-': 1, 'I-': 2, 'I+': 3}
-y_numeric = np.array([label_mapping[label] if label in label_mapping else -1 for label in y])
+y_numeric = np.array(
+    [label_mapping[label] if label in label_mapping else -1 for label in y])
 
 # Filter rows with labels for training
 train_mask = y_numeric != -1
 X_train = X[train_mask]
 y_train = y_numeric[train_mask]
 print(y_train)
+print(X_train)
 # Filter rows without labels for testing
 test_mask = ~train_mask
 X_test = X[test_mask]
 y_test = y_numeric[test_mask]
 IDs = IDs[test_mask]
-
+print("X_test", X_test)
 # Create a SVM classifier
-clf = MultiClassSVM(C=10000)
+clf = MultiClassSVM(C=2)
 
 # Train the classifier
 clf.fit(X_train, y_train)
@@ -46,4 +48,5 @@ for i in range(len(y_pred)):
     classIds[int(y_pred[i])].append(IDs[i])
 print(len(classIds[0]))
 print(classIds[0])
+print(classIds)
 output_plotter(classIds[0])

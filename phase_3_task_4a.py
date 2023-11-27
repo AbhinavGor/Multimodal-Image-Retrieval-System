@@ -19,17 +19,21 @@ from lsh import EuclideanLSHRefined
 
 np.set_printoptions(threshold=np.inf)
 
+
 def on_button_click(event):
     global feedback_list
     feedback_list.append(text_box.text)
     plt.close()
 
+
 def on_click(event):
     global current_coords
     current_coords = (event.xdata, event.ydata)
-    rect = Rectangle((current_coords[0] - 0.5, current_coords[1] - 0.5), 1, 1, linewidth=1, edgecolor='r', facecolor='none')
+    rect = Rectangle((current_coords[0] - 0.5, current_coords[1] - 0.5),
+                     1, 1, linewidth=1, edgecolor='r', facecolor='none')
     # ax.add_patch(rect)
     plt.draw()
+
 
 mongo_client = connect_to_mongo()
 
@@ -67,13 +71,15 @@ for vec in image_features:
     ctr += 1
 
 index_structure = lsh.get_index_structure()
-    
+
 lsh.save_index_to_csv(csv_file_name)
 
 print("In-memory Index Structure is saved to file", csv_file_name)
 
-collection = dbname.phase3_odd_features
+# 4b
+collection = dbname.features
 query_id = str(input("Enter the odd query image ID: "))
+top_k = int(input("Enter k for top_k: "))
 query = collection.find_one({"image_id": str(query_id)})
 query = tuple(np.array(query[selected_feature]).flatten())
 result_image_ids, result_feature_vectors = lsh.query(query, 100)
@@ -83,26 +89,31 @@ print("Overall images considered: ", len(result_image_ids))
 print("Unique images considered: ", len(set(result_image_ids)))
 
 collection = dbname.phase2_features
-result_image_features = collection.find({"image_id" : { "$in" :  result_image_ids}})
-count = collection.count_documents({"image_id" : { "$in" :  result_image_ids}})
+result_image_features = collection.find(
+    {"image_id": {"$in":  result_image_ids}})
+count = collection.count_documents({"image_id": {"$in":  result_image_ids}})
 
 similarities = []
 final_result_image_ids = []
 final_result_image_feature_vectors = []
 for i in result_image_features:
-    similarities.append(math.dist(np.array(query).flatten(), np.array(i[selected_feature]).flatten()))
+    similarities.append(math.dist(np.array(query).flatten(),
+                        np.array(i[selected_feature]).flatten()))
     final_result_image_ids.append(int(i["image_id"]))
-    final_result_image_feature_vectors.append(np.array(i[selected_feature]).flatten().tolist())
+    final_result_image_feature_vectors.append(
+        np.array(i[selected_feature]).flatten().tolist())
 
 top_k_indices = top_k_min_indices(similarities)
 
-top_k_image_ids = [final_result_image_ids[id] for id in top_k_indices]
-for i in top_k_image_ids: print(i, end=" ")
-top_k_image_feature_vectors = [final_result_image_feature_vectors[id] for id in top_k_indices]
+top_k_image_ids = [final_result_image_ids[id] for id in top_k_indices][:top_k]
+for i in top_k_image_ids:
+    print(i, end=" ")
+top_k_image_feature_vectors = [
+    final_result_image_feature_vectors[id] for id in top_k_indices][:top_k]
 
 # Loading the dataset
 dataset = torchvision.datasets.Caltech101(
-    '/home/abhinavgorantla/hdd/ASU/Fall 23 - 24/CSE515 - Multimedia and Web Databases/project/caltech101', download=True)
+    'D:\ASU\Fall Semester 2023 - 24\CSE515 - Multimedia and Web Databases', download=True)
 data_loader = torch.utils.data.DataLoader(
     dataset, batch_size=4, shuffle=True, num_workers=8)
 
@@ -110,19 +121,11 @@ relevance_ids = []
 relevance_vectors = []
 i = 0
 
-for i in range(min(10, len(top_k_image_ids))):
-    if len(np.unique(feedback_list)) == 4:
-        if feedback_list.count('R+') > 4:
-            break
-        val = True
-        res = [bool(feedback_list.count(j) > 2) for j in np.unique(feedback_list)]
-        for k in res: val &= k
-        if val:
-            break
+for i in range(min(int((top_k)/2), int((len(top_k_image_ids))/2))):
     img, label = dataset[top_k_image_ids[i]]
     relevance_ids.append(top_k_image_ids[i])
     relevance_vectors.append(top_k_image_feature_vectors[i])
-    
+
     fig, ax = plt.subplots()
     img = torch.tensor(np.array(img))
 
@@ -141,44 +144,14 @@ for i in range(min(10, len(top_k_image_ids))):
 
     plt.show()
 
-for i in range(20, min(35, len(top_k_image_ids))):
-    if len(np.unique(feedback_list)) == 4:
-        if feedback_list.count('R+') > 4:
-            break
-        val = True
-        res = [bool(feedback_list.count(j) > 2) for j in np.unique(feedback_list)]
-        for k in res: val &= k
-        if val:
-            break
-    img, label = dataset[top_k_image_ids[i]]
-    relevance_ids.append(top_k_image_ids[i])
-    relevance_vectors.append(top_k_image_feature_vectors[i])
-    
-    fig, ax = plt.subplots()
-    img = torch.tensor(np.array(img))
-
-    ax.imshow((np.squeeze(img)))
-
-    fig.canvas.mpl_connect('button_press_event', on_click)
-
-    # Add a button for user feedback
-    ax_button = plt.axes([0.81, 0.05, 0.1, 0.075])
-    button = Button(ax_button, 'Submit Feedback')
-    button.on_clicked(on_button_click)
-
-    # Add a text box for user input
-    ax_textbox = plt.axes([0.1, 0.01, 0.65, 0.05])
-    text_box = TextBox(ax_textbox, 'Feedback: ', initial="")
-
-    plt.show()
-
-df = pd.DataFrame({'ImageID': final_result_image_ids, 'FeatureVector': final_result_image_feature_vectors})
+df = pd.DataFrame({'ImageID': top_k_image_ids,
+                  'FeatureVector': top_k_image_feature_vectors})
 df['relevance'] = ''
 
 for i in range(len(feedback_list)):
     image_id = relevance_ids[i]
     new_relevance = feedback_list[i]
-    
+
     df.loc[df['ImageID'] == image_id, 'relevance'] = new_relevance
 # Save the DataFrame to a CSV file
 df.to_csv('task_4_output.csv', index=False)
