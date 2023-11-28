@@ -4,141 +4,116 @@ from tqdm import tqdm
 
 from database_connection import connect_to_mongo
 
-class Node:
-    def __init__(self, feature_index=None, threshold=None, left=None, right=None, info_gain=None, value=None):
-        # for decision node
-        self.feature_index = feature_index
-        self.threshold = threshold
-        self.left = left
-        self.right = right
-        self.info_gain = info_gain
 
-        # for leaf node
-        self.value = value
+class Node:
+    def __init__(self, gini, num_samples, num_samples_per_class, predicted_class):
+        self.gini = gini
+        self.num_samples = num_samples
+        self.num_samples_per_class = num_samples_per_class
+        self.predicted_class = predicted_class
+        self.feature_index = 0
+        self.threshold = 0
+        self.left = None
+        self.right = None
 
 class DecisionTreeClassifierCustom:
-    def __init__(self, min_samples_split=2, max_depth=2):
-        self.root = None
-        self.min_samples_split = min_samples_split
+    def __init__(self, max_depth=0, min_samples_split=2):
         self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
 
-    def build_tree(self, dataset, curr_depth=0):
-        X, y = dataset[:, :-1], dataset[:, -1]
-        num_samples, num_features = np.shape(X)
+    def _best_split(self, X, y):
+        best_idx, best_thr = None, None
+        best_gini = 1.0
+        num_samples = len(y)
+        num_classes = len(set(y))
 
-        print(f"Current depth: {curr_depth}")
-        print(f"Number of samples: {num_samples}")
-        print(f"Number of features: {num_features}")
+        for idx in range(X.shape[1]):
+            sorted_indices = np.argsort(X[:, idx])
+            thresholds = X[sorted_indices, idx]
+            classes = y[sorted_indices]
 
-        # split until stopping conditions are met
-        if num_samples >= self.min_samples_split and curr_depth <= self.max_depth:
-            best_split = self.get_best_split(dataset, num_samples, num_features)
-            if best_split["info_gain"] > 0:
-                print(f"Splitting at feature {best_split['feature_index']} with threshold {best_split['threshold']}")
-                print(f"Left dataset size: {len(best_split['dataset_left'])}, Right dataset size: {len(best_split['dataset_right'])}")
-                left_subtree = self.build_tree(best_split["dataset_left"], curr_depth + 1)
-                right_subtree = self.build_tree(best_split["dataset_right"], curr_depth + 1)
-                return Node(best_split["feature_index"], best_split["threshold"], left_subtree, right_subtree,
-                            best_split["info_gain"])
+            class_indices = {label: idx for idx, label in enumerate(sorted(set(y)))}
+            num_left = [0] * num_classes
+            num_right = [np.sum(y == c) for c in range(num_classes)]
 
-        leaf_value = self.calculate_leaf_value(y)
-        print(f"Reached leaf node with value: {leaf_value}")
-        return Node(value=leaf_value)
+            for i in range(1, num_samples):
+                c = class_indices[classes[i - 1]]
+                num_left[c] += 1
+                num_right[c] -= 1
+                gini_left = 1.0 - sum((num_left[x] / i) ** 2 for x in range(num_classes))
+                gini_right = 1.0 - sum(
+                    (num_right[x] / (num_samples - i)) ** 2 for x in range(num_classes)
+                )
+                gini = (i * gini_left + (num_samples - i) * gini_right) / num_samples
 
-    def get_best_split(self, dataset, num_samples, num_features):
-        best_split = {}
-        max_info_gain = -float("inf")
+                if thresholds[i] == thresholds[i - 1]:
+                    continue
 
-        for feature_index in range(num_features):
-            feature_values = dataset[:, feature_index]
-            possible_thresholds = np.unique(feature_values)
-            for threshold in possible_thresholds:
-                dataset_left, dataset_right = self.split(dataset, feature_index, threshold)
-                if len(dataset_left) > 0 and len(dataset_right) > 0:
-                    y, left_y, right_y = dataset[:, -1], dataset_left[:, -1], dataset_right[:, -1]
-                    curr_info_gain = self.information_gain(y, left_y, right_y)
-                    if curr_info_gain > max_info_gain:
-                        best_split["feature_index"] = feature_index
-                        best_split["threshold"] = threshold
-                        best_split["dataset_left"] = dataset_left
-                        best_split["dataset_right"] = dataset_right
-                        best_split["info_gain"] = curr_info_gain
-                        max_info_gain = curr_info_gain
+                if gini < best_gini:
+                    best_gini = gini
+                    best_idx = idx
+                    best_thr = (thresholds[i] + thresholds[i - 1]) / 2
 
-        print("Best Split:")
-        print(f"Feature Index: {best_split['feature_index']}")
-        print(f"Threshold: {best_split['threshold']}")
-        print(f"Info Gain: {best_split['info_gain']}")
-        print(f"Left Dataset Size: {len(best_split['dataset_left'])}")
-        print(f"Right Dataset Size: {len(best_split['dataset_right'])}")
+        return best_idx, best_thr
 
-        return best_split
+    def _grow_tree(self, X, y, depth=0):
+        num_samples_per_class = [np.sum(y == c) for c in range(len(set(y)))]
+        predicted_class = np.argmax(num_samples_per_class)
+        node = Node(
+            gini=1.0 - sum((np.sum(y == c) / len(y)) ** 2 for c in range(len(set(y)))),
+            num_samples=len(y),
+            num_samples_per_class=num_samples_per_class,
+            predicted_class=predicted_class,
+        )
 
-    def split(self, dataset, feature_index, threshold):
-        dataset_left = dataset[dataset[:, feature_index] <= threshold]
-        dataset_right = dataset[dataset[:, feature_index] > threshold]
-        
-        #print("Split:")
-        print(f"Feature Index: {feature_index}")
-        print(f"Threshold: {threshold}")
-        print(f"Left Dataset Size: {len(dataset_left)}")
-        print(f"Right Dataset Size: {len(dataset_right)}")
+        print(f"Depth: {depth}, Num Samples: {len(y)}, Gini: {node.gini}, Predicted Class: {node.predicted_class}")
 
-        return dataset_left, dataset_right
+        if depth < self.max_depth:
+            idx, thr = self._best_split(X, y)
+            if idx is not None:
+                print(f"Depth: {depth}, Threshold: {thr}")
+                indices_left = X[:, idx] < thr
+                X_left, y_left = X[indices_left], y[indices_left]
+                X_right, y_right = X[~indices_left], y[~indices_left]
+                node.feature_index = idx
+                node.threshold = thr
+                node.left = self._grow_tree(X_left, y_left, depth + 1)
+                node.right = self._grow_tree(X_right, y_right, depth + 1)
+        return node
 
-    def information_gain(self, parent, l_child, r_child):
-        weight_l = len(l_child) / len(parent)
-        weight_r = len(r_child) / len(parent)
-        return self.entropy(parent) - (weight_l * self.entropy(l_child) + weight_r * self.entropy(r_child))
-
-    def entropy(self, y):
-        class_labels = np.unique(y)
-        entropy = 0
-        for cls in class_labels:
-            p_cls = len(y[y == cls]) / len(y)
-            entropy -= p_cls * np.log2(p_cls)
-        return entropy
-
-    def calculate_leaf_value(self, y):
-        y = list(y)
-        return max(y, key=y.count)
+    def _predict(self, inputs, node):
+        if node.left is None and node.right is None:
+            return node.predicted_class
+        if inputs[node.feature_index] < node.threshold:
+            return self._predict(inputs, node.left)
+        else:
+            return self._predict(inputs, node.right)
 
     def fit(self, X, y):
-        # Ensure X is a 2D array
-        if X.ndim > 2:
-            # If X has more than 2 dimensions, flatten it
-            X = X.reshape(X.shape[0], -1)
-        elif X.ndim == 1:
-            # If X is 1D, convert it to a 2D array
-            X = np.atleast_2d(X).T
-
-        # Ensure y is a 1D array
-        y = np.squeeze(y)
-
-        # Reshape y to be a column vector
-        y = y.reshape(-1, 1)
-
-        dataset = np.concatenate((X, y), axis=1)
-        self.root = self.build_tree(dataset)
+        self.tree_ = self._grow_tree(X, y)
 
     def predict(self, X):
-        predictions = [self.make_prediction(x, self.root) for x in X]
-        return np.array(predictions)
-
-    def make_prediction(self, x, tree):
-        if tree.value is not None:
-            return tree.value
-        feature_val = x[tree.feature_index]
-        if feature_val <= tree.threshold:
-            return self.make_prediction(x, tree.left)
+        return [self._predict(inputs, self.tree_) for inputs in X]
+    
+def print_tree(node, depth=0):
+    if node is not None:
+        print("  " * depth, end="")
+        if node.left is None and node.right is None:
+            print(f"Leaf - Predicted Class: {node.predicted_class}, Class Distribution: {node.num_samples_per_class}")
         else:
-            return self.make_prediction(x, tree.right)
+            print(f"Depth: {depth}, Threshold: {node.threshold}")
+            print_tree(node.left, depth + 1)
+            print_tree(node.right, depth + 1)
 
 # Load data from MongoDB
 client = connect_to_mongo()
 db = client.CSE515ProjectDB
 collection = db.Phase2
+collection_odd = db.Odd_Image_Feature_Vectors
 
+odd_image_data = []
+odd_image_features = collection_odd.find()
+odd_image_count = collection_odd.count_documents({})
 extracted_items = []
 image_features = collection.find()
 
@@ -155,20 +130,40 @@ for document in collection.find({}, {field_to_extract: 1, "target": 1}):
 # Convert data to NumPy array
 data = np.array(extracted_items)
 
-# Shuffle and split the data
-split_ratio = 0.8
-np.random.shuffle(data)
-split_index = int(len(data) * split_ratio)
+for image in tqdm(
+    odd_image_features, desc="Loading Progress", unit="images", total=odd_image_count
+):
+    odd_image_data.append(
+        {
+            "feature": image[field_to_extract],
+            "label": image["target"],
+            "image_id": image["image_id"],
+        }
+    )
 
-X_data = np.array([d["feature"] for d in data])
-y_data = np.array([d["target"] for d in data])
-X_train, X_test = X_data[:split_index], X_data[split_index:]
-y_train, y_test = y_data[:split_index], y_data[split_index:]
+
+odd_image_data_array = np.array(odd_image_data)
+
+X_train = np.array([data["feature"] for data in data])
+y_train = np.array([data["target"] for data in data])
+
+print ("Training data: ", X_train)
+print("Y train: ", set(y_train), len(set(y_train)))
+
+X_test = np.array([data["feature"] for data in odd_image_data_array])
+y_test = np.array([data["label"] for data in odd_image_data_array])
+
+print ("Test data: ", X_test)
+print("Y test: ", set(y_test), len(set(y_test)))
+
+np.savetxt("data.txt", y_train)
 
 # Initialize and fit the custom Decision Tree model
-tree = DecisionTreeClassifierCustom(min_samples_split=2, max_depth=2)
-print("Tree:", tree)
+tree = DecisionTreeClassifierCustom(min_samples_split=2, max_depth=100)
 tree.fit(X_train, y_train)
+
+# Add this line after fitting the tree
+print_tree(tree.tree_)
 
 # Predict using the custom Decision Tree model
 y_pred = tree.predict(X_test)
@@ -176,11 +171,3 @@ y_pred = tree.predict(X_test)
 # Evaluate accuracy
 accuracy = accuracy_score(y_test, y_pred)
 print(f'Accuracy: {accuracy * 100:.2f}%')
-
-# Print actual vs. predicted values
-print("Actual vs. Predicted:")
-for actual, predicted in zip(y_test, y_pred):
-    print(f"Actual: {actual}, Predicted: {predicted}")
-
-txtfilename = "Tree_result"
-np.savetxt(txtfilename, tree, fmt='%.6f', delimiter='\t')
