@@ -81,24 +81,10 @@ class DecisionTreeClassifierCustom:
                 indices_left = X[:, idx] < thr
                 X_left, y_left = X[indices_left], y[indices_left]
                 X_right, y_right = X[~indices_left], y[~indices_left]
-
-                # Calculate the predicted class based on the majority class in the leaf node
-                predicted_class_left = np.argmax(
-                    [np.sum(y_left == c) for c in range(len(set(y_left)))])
-                predicted_class_right = np.argmax(
-                    [np.sum(y_right == c) for c in range(len(set(y_right)))])
-
                 node.feature_index = idx
                 node.threshold = thr
-
-                # Recursively grow the tree for left and right nodes
                 node.left = self._grow_tree(X_left, y_left, depth + 1)
                 node.right = self._grow_tree(X_right, y_right, depth + 1)
-
-                # Set the predicted class based on the majority class in the leaf node
-                node.left.predicted_class = predicted_class_left
-                node.right.predicted_class = predicted_class_right
-
         return node
 
     def _predict(self, inputs, node):
@@ -130,8 +116,8 @@ def print_tree(node, depth=0):
 
 # Load data from MongoDB
 client = connect_to_mongo()
-db = client.cse515_project_phase1
-collection = db.phase2_features
+db = client.cse515
+collection = db.Phase2
 collection_odd = db.phase3_odd_features
 
 odd_image_data = []
@@ -146,13 +132,23 @@ feature = int(input("Select one of the feature space from above:"))
 
 field_to_extract = feature_names[feature-1]
 
+my_num = int(input("enter number of images: "))
+i = 0
+r = my_num
+
 for document in collection.find({}, {field_to_extract: 1, "target": 1}):
     if field_to_extract in document:
         extracted_items.append(
             {"feature": document[field_to_extract], "target": document["target"]})
+    i = i+1
+    if i == r:
+        break
+
 
 # Convert data to NumPy array
 data = np.array(extracted_items)
+
+i = 0
 
 for image in tqdm(
     odd_image_features, desc="Loading Progress", unit="images", total=odd_image_count
@@ -164,6 +160,9 @@ for image in tqdm(
             "image_id": image["image_id"],
         }
     )
+    i = i+1
+    if i == r:
+        break
 
 
 odd_image_data_array = np.array(odd_image_data)
@@ -183,7 +182,7 @@ print("Y test: ", set(y_test), len(set(y_test)))
 np.savetxt("data.txt", y_train)
 
 # Initialize and fit the custom Decision Tree model
-tree = DecisionTreeClassifierCustom(min_samples_split=2, max_depth=5)
+tree = DecisionTreeClassifierCustom(min_samples_split=2, max_depth=3)
 tree.fit(X_train, y_train)
 
 # Add this line after fitting the tree
@@ -197,7 +196,6 @@ y_pred = tree.predict(X_test)
 print("Actual vs. Predicted:")
 for actual, predicted in zip(y_test, y_pred):
     print(f"Actual: {actual}, Predicted: {predicted}")
-
 
 # Evaluate accuracy
 accuracy = accuracy_score(y_test, y_pred)
