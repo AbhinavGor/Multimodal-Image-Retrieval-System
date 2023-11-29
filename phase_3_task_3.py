@@ -17,9 +17,10 @@ transforms = transforms.Compose([
 ])
 
 dataset = datasets.Caltech101(
-    'your_path', transform=transforms, download=True)
+    'D:\ASU\Fall Semester 2023 - 24\CSE515 - Multimedia and Web Databases', transform=transforms, download=True)
 data_loader = torch.utils.data.DataLoader(
     dataset, batch_size=4, shuffle=True, num_workers=8)
+
 
 def load_odd_image_data(feature):
     odd_number_images = []
@@ -28,7 +29,8 @@ def load_odd_image_data(feature):
             img, label = dataset[image_ID]
 
             resized_img = [cv2.resize(i, (300, 100)) for i in img.numpy()]
-            resized_resnet_img = [cv2.resize(i, (224, 224)) for i in img.numpy()]
+            resized_resnet_img = [cv2.resize(
+                i, (224, 224)) for i in img.numpy()]
 
             # checking if the image has 3 channels
             if len(resized_img) == 3:
@@ -53,6 +55,7 @@ def load_odd_image_data(feature):
                 odd_number_images.append(entry)
     return odd_number_images
 
+
 def fetch_data_from_db(descriptor):
     data = []
     for image_data in collection.find():
@@ -64,6 +67,7 @@ def fetch_data_from_db(descriptor):
             }
             data.append(entry)
     return data
+
 
 '''
 The below function creates a similarity graph which is computationally very intensive as it is adding every node and edge separately in a loop
@@ -80,47 +84,59 @@ It could potentially dilute the importance of the most relevant similarities as 
 #             G.add_edge(i, j, weight=euclidean_distance(entry['feature'], other_entry['feature']))
 #     return G
 
+
 def create_similarity_graph(data, n):
     G = nx.Graph()
     for i, entry in enumerate(data):
         G.add_node(entry['image_id'], label=entry['label'])
-        
+
         # Calculate similarities with all other nodes
-        similarities = [(other_entry['image_id'], 1 / (1 + euclidean_distance(entry['feature'], other_entry['feature']))) for other_entry in data if other_entry['image_id'] != entry['image_id']]
-        
+        similarities = [(other_entry['image_id'], 1 / (1 + euclidean_distance(entry['feature'], other_entry['feature'])))
+                        for other_entry in data if other_entry['image_id'] != entry['image_id']]
+
         # Sort by similarity and take top n
-        top_n_similarities = sorted(similarities, key=lambda x: x[1], reverse=True)[:n]
+        top_n_similarities = sorted(
+            similarities, key=lambda x: x[1], reverse=True)[:n]
 
         for other_image_id, similarity in top_n_similarities:
             G.add_edge(entry['image_id'], other_image_id, weight=similarity)
 
     return G
 
+
 def personalized_page_rank_predict(graph, test_data, alpha):
     predictions = {}
     for test_entry in test_data:
         # Create personalization vector
-        personalization = {node: 1 if graph.nodes[node]['label'] == test_entry['label'] else 0 for node in graph.nodes}
-        
-        ranks = nx.pagerank(graph, personalization=personalization, alpha=alpha)
-        
+        personalization = {
+            node: 1 if graph.nodes[node]['label'] == test_entry['label'] else 0 for node in graph.nodes}
+
+        ranks = nx.pagerank(
+            graph, personalization=personalization, alpha=alpha)
+
         predicted_label = max(set(ranks), key=ranks.get)
-        predictions[test_entry['image_id']] = graph.nodes[predicted_label]['label']
+        predictions[test_entry['image_id']
+                    ] = graph.nodes[predicted_label]['label']
     return predictions
+
 
 def euclidean_distance(x1, x2):
     x1, x2 = np.array(x1), np.array(x2)
     return np.sqrt(np.sum((x1 - x2) ** 2))
 
+
 def get_nearest_neighbors(test_sample, train_data, k):
-    distances = [(i, euclidean_distance(test_sample, train_sample)) for i, train_sample in enumerate(train_data)]
+    distances = [(i, euclidean_distance(test_sample, train_sample))
+                 for i, train_sample in enumerate(train_data)]
     distances.sort(key=lambda x: x[1])
     return distances[:k]
+
 
 def predict_class(neighbors, train_labels):
     neighbor_labels = [train_labels[i] for i, _ in neighbors]
     unique_labels, counts = np.unique(neighbor_labels, return_counts=True)
     return unique_labels[np.argmax(counts)]
+
 
 def predict(test_data, train_data, train_labels, k):
     predictions = []
@@ -132,6 +148,7 @@ def predict(test_data, train_data, train_labels, k):
         if i % 100 == 0:
             print(f'Processed {i} test samples out of {len(test_data)}')
     return predictions
+
 
 client = connect_to_mongo()
 dbname = client.cse515_project_phase1
@@ -171,7 +188,8 @@ elif classifier_choice == 'ppr':
     data = fetch_data_from_db(feature)
     graph = create_similarity_graph(data, 10)
     odd_number_images = load_odd_image_data()
-    predictions = personalized_page_rank_predict(graph, odd_number_images, jump_prob)
+    predictions = personalized_page_rank_predict(
+        graph, odd_number_images, jump_prob)
     y_test = [entry['label'] for entry in odd_number_images]
     y_pred = list(predictions.values())
 else:
