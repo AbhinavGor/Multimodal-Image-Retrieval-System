@@ -116,9 +116,9 @@ def print_tree(node, depth=0):
 
 # Load data from MongoDB
 client = connect_to_mongo()
-db = client.cse515
-collection = db.Phase2
-collection_odd = db.phase3_odd_features
+dbname = client.cse515_project_phase1
+collection = dbname.phase2_features
+collection_odd = dbname.phase3_odd_features
 
 odd_image_data = []
 odd_image_features = collection_odd.find()
@@ -130,25 +130,17 @@ feature_names = ["color_moment", "hog", "layer3", "avgpool", "fc"]
 print("1. Color Moment\n2. HoG.\n3. Layer 3.\n4. AvgPool.\n5. FC.")
 feature = int(input("Select one of the feature space from above:"))
 
-field_to_extract = feature_names[feature-1]
+depth = int(input("Enter the depth:"))
 
-my_num = int(input("enter number of images: "))
-i = 0
-r = my_num
+field_to_extract = feature_names[feature-1]
 
 for document in collection.find({}, {field_to_extract: 1, "target": 1}):
     if field_to_extract in document:
         extracted_items.append(
             {"feature": document[field_to_extract], "target": document["target"]})
-    i = i+1
-    if i == r:
-        break
-
 
 # Convert data to NumPy array
 data = np.array(extracted_items)
-
-i = 0
 
 for image in tqdm(
     odd_image_features, desc="Loading Progress", unit="images", total=odd_image_count
@@ -160,9 +152,6 @@ for image in tqdm(
             "image_id": image["image_id"],
         }
     )
-    i = i+1
-    if i == r:
-        break
 
 
 odd_image_data_array = np.array(odd_image_data)
@@ -182,7 +171,7 @@ print("Y test: ", set(y_test), len(set(y_test)))
 np.savetxt("data.txt", y_train)
 
 # Initialize and fit the custom Decision Tree model
-tree = DecisionTreeClassifierCustom(min_samples_split=2, max_depth=3)
+tree = DecisionTreeClassifierCustom(min_samples_split=2, max_depth=depth)
 tree.fit(X_train, y_train)
 
 # Add this line after fitting the tree
@@ -190,12 +179,6 @@ print_tree(tree.tree_)
 
 # Predict using the custom Decision Tree model
 y_pred = tree.predict(X_test)
-
-
-# Print actual vs. predicted values
-print("Actual vs. Predicted:")
-for actual, predicted in zip(y_test, y_pred):
-    print(f"Actual: {actual}, Predicted: {predicted}")
 
 # Evaluate accuracy
 accuracy = accuracy_score(y_test, y_pred)
