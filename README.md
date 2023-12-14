@@ -1,7 +1,7 @@
 # CSE515 - Multimedia and Web Databases
 
 ## Project Phase 3
-
+- Project phase 1 and 2 can be accessed (here)[https://github.com/AbhinavGor/Multimodal-Image-Retrieval-System---Phase-1].
 ### System Requirements
 1. Python environment (Version 3.10).
 2. Windows 10 or MacOS
