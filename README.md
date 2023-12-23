@@ -44,7 +44,7 @@
 10. Execute phase_3_task_4.py. Once the execution begins the user will be prompted to enter the number of layers and hashes per layer for the LSH when prompted, choose the feature space (e.g., color moment, HoG) you want to use for LSH & input the odd query image ID and the value of k for the top_k similar images. A graphical interface will display images for which you can provide feedback. Click the image and enter your feedback in the text box. Our inputs look like this: {'R+', 'R', 'I', 'I-'}, then submit it. After closing the GUI, the script will save the feedback data to a CSV file named 'task_4_output.csv'.
 11. Execute phase_3_task_5.py, Once the execution begins this script will output the SVM's classification of images into different categories based on the feedback. Before passing on the data from the csv file to the SVM, the feedback from the user is assigned the integer values using the following dictionary: {'R+': 0, 'R': 1, 'I': 2, 'I-': 3}. It will also generate a plot or visualization of the classified images. This will take in the .csv file generated from task 4 as the reference.
  
-#### Submitted By-
+### Contributors-
 - Abhinav Gorantla
 - Rohan Samuel Gangavarapu
 - Ram Abhishek Ramadoss Sivadoss
